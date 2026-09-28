@@ -257,12 +257,12 @@ Work one phase at a time. **Run the app after every phase.** A phase is not done
 
 ### Phase 0 — Baseline
 
-- [ ] `cd book-api/book`
-- [ ] `./mvnw spring-boot:run` — confirm it starts on port 8080
-- [ ] Open `http://localhost:8080/actuator/health` → expect `{"status":"UP"}`
-- [ ] Read `BookApplication.java`. Identify the annotation that triggers component
+- [X] `cd book-api/book`
+- [X] `./mvnw spring-boot:run` — confirm it starts on port 8080
+- [X] Open `http://localhost:8080/actuator/health` → expect `{"status":"UP"}`
+- [X] Read `BookApplication.java`. Identify the annotation that triggers component
       scanning and auto-configuration.
-- [ ] **Verify:** app starts, health endpoint responds.
+- [X] **Verify:** app starts, health endpoint responds.
 
 **Concept:** the container starts even with zero endpoints of your own. Actuator's
 endpoint came from auto-configuration, not from code you wrote.
@@ -271,12 +271,12 @@ endpoint came from auto-configuration, not from code you wrote.
 
 ### Phase 1 — Package structure
 
-- [ ] Inside `np.com.milapmagar.book`, create packages:
+- [X] Inside `np.com.milapmagar.book`, create packages:
       `controller`, `service`, `repository`, `model` (or `entity`), `dto`, `exception`
-- [ ] **Verify:** every package sits *under* the package holding `BookApplication`.
+- [X] **Verify:** every package sits *under* the package holding `BookApplication`.
 
 **Concept:** package-by-layer. (There is a rival convention, package-by-feature — a
-`book` package holding its own controller/service/repository. Layers are easier while
+`book` package holding its own controller/service/repository. Layers are easier wwhile
 learning; note that the alternative exists.)
 
 ---

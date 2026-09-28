@@ -1,0 +1,10 @@
+target/
+.git/
+.gitignore
+.idea/
+*.log
+*.iml
+HELP.md
+compose.yaml
+Dockerfile
+.dockerignore

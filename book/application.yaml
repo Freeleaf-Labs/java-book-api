@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: book
+    datasource:
+      url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bookdb}
+      username: ${SPRING_DATASOURCE_USERNAME:book}
+      password: ${SPRING_DATASOURCE_PASSWORD:book}
+    jpa:
+      hibernate:
+        ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+      show-sql: false
+server:
+  port: ${PORT:8080}

@@ -6,9 +6,9 @@ services:
       POSTGRES_USER: book
       POSTGRES_PASSWORD: book
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - book-pgdata:/var/lib/postgresql/data
+      - book-pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U book -d bookdb"]
       interval: 5s

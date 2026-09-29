@@ -355,33 +355,28 @@ or Render changes are needed for Phases 2–10.
 - [X] `id`: generated primary key (identity strategy suits Postgres)
 - [X] `isbn`: unique, not null
 - [X] All fields **private**
-- [ ] Add one `discountAmount()` method for handling the discounted price. 
-- [ ] Give it a no-arg constructor (JPA requires one) and a constructor taking the real fields
-- [ ] Implement `equals`/`hashCode` on `isbn` (the business key), **not** on `id`
-- [ ] **Verify:** start the app, then `\dt` in psql — the `books` table exists.
+- [X] Add one `discountAmount()` method for handling the discounted price.
+- [X] Give it a no-arg constructor (JPA requires one) and a constructor taking the real fields
+- [X] Implement `equals`/`hashCode` on `isbn` (the business key), **not** on `id`
+- [X] **Verify:** start the app, then `\dt` in psql — the `books` table exists.
       (`docker compose exec postgres psql -U book -d bookdb -c '\dt'`)
-- [ ] Push → after Render redeploys, the table exists on Render Postgres too.
+- [X] Push → after Render redeploys, the table exists on Render Postgres too.
 
-**Concept: Encapsulation.** Ask yourself: *can outside code put this object into an
-invalid state?* If yes, you exposed too much. The `borrowOneCopy()` method is the
-difference between a real object and a data bag.
+**Concept: Encapsulation.** Ask yourself: *can outside code put this object into on invalid state?* If yes, you exposed too much. The `borrowOneCopy()` method is the difference between a real object and a data bag.
 
 ---
 
 ### Phase 3 — Repository
 
-- [ ] Create `BookRepository` in `repository` as an **interface** extending
+- [X] Create `BookRepository` in `repository` as an **interface** extending
       `JpaRepository<Book, Long>`
-- [ ] Write zero method bodies
-- [ ] Add derived query methods by naming convention:
+- [X] Write zero method bodies
+- [X] Add derived query methods by naming convention:
       `findByAuthor(...)`, `findByIsbn(...)` (returning `Optional`),
       `existsByIsbn(...)`, `findByTitleContainingIgnoreCase(...)`
-- [ ] **Verify:** the app still starts. Spring generated the implementation — you can
-      confirm by logging the bean's class name and seeing a proxy type.
+- [X] **Verify:** the app still starts. Spring generated the implementation — you can confirm by logging the bean's class name and seeing a proxy type.
 
-**Concepts: Abstraction + Dependency Inversion.** You declared *what* you need; the
-framework supplied *how*. Note how little you had to write — that is the payoff of coding
-against an interface.
+**Concepts: Abstraction + Dependency Inversion.** You declared *what you need; the framework supplied *how*. Note how little you had to write — that is the payoff of coding against an interface.
 
 ---
 

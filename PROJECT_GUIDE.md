@@ -11,6 +11,8 @@ learning **layered architecture**, **OOP concepts**, and **SOLID principles**.
 
 ## 1. Where the project stands today
 
+*Last updated: 2026-09-29 — deployment pipeline done, API creation starts at Phase 2.*
+
 | Thing | Value |
 |---|---|
 | Location | `book-api/book/` |
@@ -18,13 +20,56 @@ learning **layered architecture**, **OOP concepts**, and **SOLID principles**.
 | Spring Boot | 4.1.1 |
 | Java | 25 |
 | Build tool | Maven, via the wrapper `./mvnw` (no system Maven needed) |
-| Database now | H2 in-memory (we will replace with PostgreSQL) |
-| Files written | `BookApplication.java`, `BookApplicationTests.java`, `application.yaml` |
+| Database now | PostgreSQL 18 — `compose.yaml` locally, Render Postgres in production |
+| Deployment | Docker image on Render, auto-deploys on push (see `DOCKER_DEPLOY.md`) |
 
 Already on the classpath: **Web MVC**, **Data JPA**, **Validation**, **Actuator**, **DevTools**,
-**H2 + H2 console**, **REST Docs** (test only).
+**PostgreSQL driver**, **REST Docs** (test only). H2 is still in `pom.xml` but unused — remove it
+in Phase 7.
 
-Nothing else exists yet. That is the point — you are going to add it.
+### 1.1 What exists right now
+
+| File | State | What to do with it |
+|---|---|---|
+| `BookApplication.java` | Done | Leave alone |
+| `RootController.java` | Done — `GET /` returns name, status, links | Add `"books": "/api/books"` to the links map in Phase 6 |
+| `HealthController.java` | `GET /health` returns a joke string | Delete once you trust `/actuator/health` (Render already uses that one) |
+| `controller/BookController.java` | Empty class, no annotations | Fill in Phase 6 |
+| `services/BookService.java` | Empty class, no annotations | Fill in Phase 5. Note: package is `services`, not `service` — pick one and stay consistent |
+| `dto/UserLoginRequest.java` | Record with `@NotBlank`; `@Email` imported but not applied | Not part of the Book API. Park it until Spring Security (post-Phase 10) — or delete it |
+| `exception/ResourceNotFoundException.java` | Done | Use it instead of a separate `BookNotFoundException`, or make `BookNotFoundException` extend it |
+| `exception/ErrorResponse.java` | Record: `timeStamp`, `status`, `error`, `message` | Change `LocalTime` → `Instant` (a time without a date is useless in logs); add a `fieldErrors` map for 400s |
+| `model/`, `repository/`, `database/` | Empty packages | `model` and `repository` fill in Phases 2–3. `database/` has no planned role — delete it or use it for Flyway-related config later |
+| `application.yaml` | Env-var driven, `ddl-auto: update`, port `${PORT:8080}` | Leave alone until Flyway |
+| `Dockerfile`, `.dockerignore`, `compose.yaml` | Done | **No changes needed while building the API** — see `DOCKER_DEPLOY.md` §8 |
+
+### 1.2 Running locally — one gotcha
+
+`compose.yaml` publishes Postgres on host port **5433**, but `application.yaml` defaults to
+`localhost:5432`. So pick one of these, and stick to it:
+
+```bash
+# A) Everything in Docker — app + db. Slow rebuilds, but zero config.
+docker compose up --build
+
+# B) Postgres in Docker, app from the IDE / mvnw — fast feedback, use this while coding.
+docker compose up -d postgres
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/bookdb ./mvnw spring-boot:run
+```
+
+For B in IntelliJ, put the same variable in the `BookApplication` run configuration's
+environment variables.
+
+### 1.3 The loop from here on
+
+Deployment is solved once; every phase below now follows the same loop:
+
+```
+write code → run locally (1.2 B) → curl it → commit → push → Render redeploys → curl the Render URL
+```
+
+Pushing after each phase is cheap and catches "works on my machine" problems while the diff is
+still small.
 
 ---
 
@@ -281,39 +326,57 @@ learning; note that the alternative exists.)
 
 ---
 
+### Phase D — Containerise & deploy (done ahead of schedule)
+
+Originally planned for after Phase 10; done early so the API can be reviewed live while it is
+being built. Full notes in `DOCKER_DEPLOY.md`.
+
+- [X] Multi-stage `Dockerfile` (JDK build → JRE runtime, non-root, exec-form `ENTRYPOINT`)
+- [X] `.dockerignore`
+- [X] `compose.yaml` with Postgres 18 + healthcheck, and the app service
+- [X] `application.yaml` reads datasource, `ddl-auto` and `PORT` from environment variables
+- [X] PostgreSQL driver added to `pom.xml`
+- [X] `GET /` landing response (`RootController`) so the Render URL is not a Whitelabel 404
+- [X] Deployed to Render (Docker runtime, root dir `book`, health check `/actuator/health`)
+- [X] **Verify:** the Render URL returns the `/` JSON and `/actuator/health` → `UP`.
+
+**What this means for the phases below:** the `books` table will be created on Render
+Postgres automatically (`ddl-auto: update`) the first time you push the entity. No Dockerfile
+or Render changes are needed for Phases 2–10.
+
+---
+
+## ▶ API creation starts here
+
 ### Phase 2 — Entity
 
-- [ ] Create `Book` in `model`. Fields: `id`, `title`, `author`, `isbn`,
-      `publishedYear`, `totalCopies`, `availableCopies`
-- [ ] Mark the class as a JPA entity; map it to a `books` table
-- [ ] `id`: generated primary key (identity strategy suits Postgres)
-- [ ] `isbn`: unique, not null
-- [ ] All fields **private**
-- [ ] Add one behaviour method, e.g. `borrowOneCopy()`, that throws when no copies remain
-- [ ] Give it a no-arg constructor (JPA requires one) and a constructor taking the real fields
-- [ ] Implement `equals`/`hashCode` on `isbn` (the business key), **not** on `id`
-- [ ] **Verify:** start the app, then `\dt` in psql — the `books` table exists.
+- [X] Create `Book` in `model`. Fields: `id`, `title`, `author`, `isbn`, `publisher`, `publishedYear`, `price`
+- [X] Mark the class as a JPA entity; map it to a `books` table
+- [X] `id`: generated primary key (identity strategy suits Postgres)
+- [X] `isbn`: unique, not null
+- [X] All fields **private**
+- [X] Add one `discountAmount()` method for handling the discounted price.
+- [X] Give it a no-arg constructor (JPA requires one) and a constructor taking the real fields
+- [X] Implement `equals`/`hashCode` on `isbn` (the business key), **not** on `id`
+- [X] **Verify:** start the app, then `\dt` in psql — the `books` table exists.
+      (`docker compose exec postgres psql -U book -d bookdb -c '\dt'`)
+- [X] Push → after Render redeploys, the table exists on Render Postgres too.
 
-**Concept: Encapsulation.** Ask yourself: *can outside code put this object into an
-invalid state?* If yes, you exposed too much. The `borrowOneCopy()` method is the
-difference between a real object and a data bag.
+**Concept: Encapsulation.** Ask yourself: *can outside code put this object into on invalid state?* If yes, you exposed too much. The `borrowOneCopy()` method is the difference between a real object and a data bag.
 
 ---
 
 ### Phase 3 — Repository
 
-- [ ] Create `BookRepository` in `repository` as an **interface** extending
+- [X] Create `BookRepository` in `repository` as an **interface** extending
       `JpaRepository<Book, Long>`
-- [ ] Write zero method bodies
-- [ ] Add derived query methods by naming convention:
+- [X] Write zero method bodies
+- [X] Add derived query methods by naming convention:
       `findByAuthor(...)`, `findByIsbn(...)` (returning `Optional`),
       `existsByIsbn(...)`, `findByTitleContainingIgnoreCase(...)`
-- [ ] **Verify:** the app still starts. Spring generated the implementation — you can
-      confirm by logging the bean's class name and seeing a proxy type.
+- [X] **Verify:** the app still starts. Spring generated the implementation — you can confirm by logging the bean's class name and seeing a proxy type.
 
-**Concepts: Abstraction + Dependency Inversion.** You declared *what* you need; the
-framework supplied *how*. Note how little you had to write — that is the payoff of coding
-against an interface.
+**Concepts: Abstraction + Dependency Inversion.** You declared *what you need; the framework supplied *how*. Note how little you had to write — that is the payoff of coding against an interface.
 
 ---
 
@@ -334,7 +397,7 @@ the DTO's job is the API contract. Two jobs, two classes, two independent reason
 
 ### Phase 5 — Service
 
-- [ ] Create `BookService`, marked as a service component
+- [ ] Fill in the existing `services/BookService` and mark it as a service component
 - [ ] `private final BookRepository repository;` — injected **via the constructor**
 - [ ] Methods: `create`, `findAll`, `findById`, `update`, `delete`, `borrow`
 - [ ] Signatures take and return **DTOs**, never Entities
@@ -352,7 +415,7 @@ has two reasons to change and you have coupled business rules to a transport pro
 
 ### Phase 6 — Controller & error handling
 
-- [ ] Create `BookController`, mapped at `/api/books`
+- [ ] Fill in the existing `controller/BookController`: `@RestController`, mapped at `/api/books`
 - [ ] Inject `BookService` through the constructor
 - [ ] Endpoints:
 
@@ -367,10 +430,14 @@ has two reasons to change and you have coupled business rules to a transport pro
 
 - [ ] Annotate the request body parameter so validation actually runs (a bare
       `@RequestBody` does **not** validate)
-- [ ] Create `BookNotFoundException` and `DuplicateIsbnException` in `exception`
+- [ ] Not-found: reuse the existing `ResourceNotFoundException` (or a `BookNotFoundException`
+      that extends it). Create `DuplicateIsbnException` in `exception`
 - [ ] Create a global exception handler class (`@RestControllerAdvice`) mapping:
       not-found → 404, duplicate → 409, validation failure → 400 with field errors
-- [ ] Define one error response shape and use it everywhere
+- [ ] Use the existing `ErrorResponse` as the one error shape everywhere (switch `LocalTime`
+      to `Instant`, add field errors — see §1.1)
+- [ ] Add `"books": "/api/books"` to the links in `RootController`
+- [ ] Delete `HealthController` — `/actuator/health` is the real one
 - [ ] **Verify:** exercise every endpoint:
 
 ```bash
@@ -383,6 +450,9 @@ curl -i localhost:8080/api/books/999          # expect 404, not a stack trace
 curl -i -X POST localhost:8080/api/books -H 'Content-Type: application/json' -d '{}'   # expect 400
 ```
 
+- [ ] Push, then repeat the same curls against the Render URL (first request after idling can
+      take 30–60 s — cold start, not a bug).
+
 **Concepts: SRP + Polymorphism.** The controller only translates HTTP ↔ Java. The handler
 picks a response by *exception type* — polymorphic dispatch replacing a pile of `if`s.
 
@@ -390,11 +460,12 @@ picks a response by *exception type* — polymorphic dispatch replacing a pile o
 
 ### Phase 7 — PostgreSQL
 
-- [ ] Write `compose.yaml` (Section 5.1)
-- [ ] `docker compose up -d`, confirm healthy with `docker compose ps`
-- [ ] Replace the H2 dependency with the PostgreSQL driver in `pom.xml`
-- [ ] Also remove the H2 console dependency — no longer used
-- [ ] Update `application.yaml` (Section 5.3), `ddl-auto: update`, `show-sql: true`
+- [X] Write `compose.yaml` (Section 5.1) — done during Phase D (host port is 5433, see §1.2)
+- [X] `docker compose up -d`, confirm healthy with `docker compose ps`
+- [X] Add the PostgreSQL driver to `pom.xml`
+- [ ] Remove the H2 dependency from `pom.xml` — still there, no longer used
+- [X] Update `application.yaml` — done, env-var driven (`DOCKER_DEPLOY.md` §5.2)
+- [ ] Optional while debugging: `show-sql: true` locally (currently `false`)
 - [ ] Restart, POST a book, then confirm it in SQL:
       `docker compose exec postgres psql -U book -d bookdb -c 'select * from books;'`
 - [ ] Restart the app again — the row is still there (this is what H2 could not do)
@@ -469,7 +540,7 @@ exists for exactly this.
 | One giant `BookService` doing everything | Fails SRP; 800 lines with no obvious place to add anything |
 | `equals`/`hashCode` on the generated `id` | Unsaved entities all have `id == null` and collapse into one another in a `Set` |
 | `ddl-auto: update` forever | Schema drifts silently; no record of how it got that way |
-| Passwords committed in `application.yaml` | Fine for local Docker; a real incident anywhere else. Use environment variables before deploying. |
+| Passwords committed in `application.yaml` | Fine for local Docker; a real incident anywhere else. ✅ Already handled — `application.yaml` only holds local defaults; Render injects the real ones. |
 
 ---
 
@@ -496,12 +567,18 @@ exists for exactly this.
 
 ---
 
-## 9. Deployment — deliberately later
+## 9. Deployment — done (Phase D)
 
-Not now, but so you know what is coming: containerise the app (Dockerfile or
-`./mvnw spring-boot:build-image`), move credentials to environment variables, add a Spring
-profile per environment, put Actuator behind authentication, and add Spring Security.
-Finish Phase 10 first.
+Containerised and running on Render; credentials come from environment variables. Details and
+the "do I need to touch the Dockerfile?" answer (almost never) are in `DOCKER_DEPLOY.md`.
+
+Still to do, **after** Phase 10:
+
+- [ ] A Spring profile per environment (`application-prod.yaml`; Render already sets
+      `SPRING_PROFILES_ACTIVE=prod`)
+- [ ] Restrict Actuator exposure / put it behind authentication
+- [ ] Spring Security — this is where `UserLoginRequest` finally gets used
+- [ ] Switch Render's `SPRING_JPA_HIBERNATE_DDL_AUTO` to `validate` once Flyway is in
 
 ---
 
@@ -516,3 +593,5 @@ Finish Phase 10 first.
 - [ ] Service unit tests run without a database
 - [ ] Errors return structured JSON, never a stack trace
 - [ ] You can explain, out loud, where each SOLID principle lives in your code
+- [X] Runs as a container image, configured entirely by environment variables
+- [ ] Every endpoint above also works on the Render URL

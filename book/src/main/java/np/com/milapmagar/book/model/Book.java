@@ -143,4 +143,8 @@ public class Book {
         // creating a fingerprint to find the book out once needed.
         return java.util.Objects.hashCode(isbn);
     }
+
+    public Object getTui() {
+        return null;
+    }
 }

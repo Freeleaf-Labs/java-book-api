@@ -15,7 +15,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     *  PUT / PATCH - updateById(int id)
     *  DELETE BY ID - delete(int id)
     *
-    * So, those above methods areBook created automatically without any callouts and other
+    * So, those above methods are created automatically without any callouts and other
     * effort that is basically the beauty of spring boot API's.
     * */
 
@@ -29,6 +29,4 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     List<Book> findByIsbn(String isbn);
     // listing by titles
     List<Book> findByTitle(String title);
-
-    List<Book> findAll();
 }

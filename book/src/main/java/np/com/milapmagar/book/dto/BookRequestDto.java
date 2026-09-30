@@ -5,7 +5,7 @@ public record BookRequestDto(
         String author,
         String publisher,
         String publishedYear,
-        String ibsn,
+        String isbn,
         Double price
 ) {
     /* Basically it is a response format for client which is w/o Id

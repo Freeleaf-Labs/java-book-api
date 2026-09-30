@@ -6,6 +6,6 @@ public record BookResponseDto(
         String author,
         String publisher,
         String publishedYear,
-        String ibsn,
+        String isbn,
         Double price
 ) {}

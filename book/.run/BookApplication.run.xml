@@ -7,6 +7,7 @@
     </envs>
     <option name="MAIN_CLASS_NAME" value="np.com.milapmagar.book.BookApplication" />
     <module name="book" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/book" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

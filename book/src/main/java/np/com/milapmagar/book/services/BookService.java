@@ -1,6 +1,7 @@
 package np.com.milapmagar.book.services;
 
 import np.com.milapmagar.book.dto.BookResponseDto;
+import np.com.milapmagar.book.exception.ResourceNotFoundException;
 import np.com.milapmagar.book.model.Book;
 import np.com.milapmagar.book.repository.BookRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,7 @@ public class BookService {
     }
 
     public BookResponseDto getBookById(Long id){
-        Book book = bookRepository.findById(id).orElseThrow(() -> new RuntimeException("Book not found"));
+        Book book = bookRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Book not found"));
         // returning the book value
         return new BookResponseDto(book.getId(), book.getTitle(), book.getAuthor(), book.getPublisher(), book.getPublishedYear(), book.getIsbn(), book.getPrice());
     }

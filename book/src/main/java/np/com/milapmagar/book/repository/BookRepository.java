@@ -23,10 +23,11 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     // -> which can basically be for finding the title and all sort of jobs
 
     // Custom Queries tryouts
-    // listing by author names
+    // author names
     List<Book> findByAuthor(String author);
-    // listing by ISBN number
+    // ISBN number
     List<Book> findByIsbn(String isbn);
-    // listing by titles
+    List<Book> existsByIsbn(String isbn);
+    // titles
     List<Book> findByTitle(String title);
 }

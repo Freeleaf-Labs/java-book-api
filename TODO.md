@@ -29,25 +29,25 @@ Husky is the same tool you know from Node projects. It lives at the **repo root*
 1. - [ ] **Constructor injection.** In `BookService` and `BookController`, swap field `@Autowired` for
          `private final` fields set through the constructor. *(Why: see `PROJECT_GUIDE.md` → Conventions)*
          ✔ No `@Autowired` in the project.
-2. - [ ] **Fix the `ibsn` typo** so it reads `isbn` in both DTOs. The JSON key follows the field name.
+2. - [X] **Fix the `ibsn` typo** so it reads `isbn` in both DTOs. The JSON key follows the field name.
          ✔ `curl /api/v1/books` shows `"isbn"`.
-3. - [ ] **Tidy `Book`.** Make `id` a `Long` and have `setId` take a `Long` (right now it takes an `int`).
+3. - [X] **Tidy `Book`.** Make `id` a `Long` and have `setId` take a `Long` (right now it takes an `int`).
          Delete the stray `getTui()`. The discount message says "0 and 50" but the check allows
          100, so make them agree.
-4. - [ ] **Tidy `BookRepository`.** `findByIsbn` → `Optional<Book>`. Add `existsByIsbn` and
+4. - [X] **Tidy `BookRepository`.** `findByIsbn` → `Optional<Book>`. Add `existsByIsbn` and
          `findByTitleContainingIgnoreCase`. Remove the redundant `findAll()` redeclaration.
 5. - [ ] **One mapper.** Move entity → DTO into one place (a static `BookResponseDto.from(Book)` or a
          `BookMapper`) so the constructor call stops being copied into every method.
-6. - [ ] **Housekeeping.** Choose `service` or `services` as the package name and use it everywhere. Delete
+6. - [X] **Housekeeping.** Choose `service` or `services` as the package name and use it everywhere. Delete
          the empty `database/` package. Delete `DatabaseTestRunner` once you no longer need it.
          Remove H2 from `pom.xml` because it's unused.
          ✔ App still starts, and both GET endpoints still work.
 
 ## Stage B: Error handling 🚨
 
-7.  - [ ] **Upgrade `ErrorResponse`.** Change `LocalTime` → `Instant` (a time with no date is useless in logs), and add
+7.  - [X] **Upgrade `ErrorResponse`.** Change `LocalTime` → `Instant` (a time with no date is useless in logs), and add
           a `fieldErrors` map for 400s.
-8.  - [ ] **Real 404s.** `getBookById` throws `ResourceNotFoundException`, not a bare `RuntimeException`.
+8.  - [X] **Real 404s.** `getBookById` throws `ResourceNotFoundException`, not a bare `RuntimeException`.
           Create a `@RestControllerAdvice` and map it to 404 using `ErrorResponse`.
           ✔ `curl -i localhost:8080/api/v1/books/999` returns 404 JSON, not a 500.
 9.  - [ ] **Validation.** Put `@NotBlank` on title/author/isbn in `BookRequestDto`, `@Positive` on price, and

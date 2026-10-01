@@ -165,7 +165,7 @@ These are the rules. Some existing code still breaks them; `TODO.md` Stage A fix
 
 ## 6. Deployment
 
-The app runs as a Docker image on Render, configured entirely by environment variables. It
+
 auto-deploys on push to `main`, with its health check on `/actuator/health`. You almost never need to
 touch the `Dockerfile` or `compose.yaml` while building the API. Full details are in `DOCKER_DEPLOY.md`.
 
@@ -177,7 +177,7 @@ touch the `Dockerfile` or `compose.yaml` while building the API. Full details ar
 | `create-drop` | Rebuild on start, drop on stop | Tests |
 
 ---
-
+The app runs as a Docker image on Render, configured entirely by environment variables. It
 ## 7. Concepts
 
 ### 7.1 How Spring Boot starts

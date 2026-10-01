@@ -19,7 +19,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bookdb
+      SPRIbooNG_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bookdb
       SPRING_DATASOURCE_USERNAME: book
       SPRING_DATASOURCE_PASSWORD: book
     depends_on:

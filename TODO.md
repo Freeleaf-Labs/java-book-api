@@ -14,13 +14,14 @@ Do the steps in order. **Run → curl → commit → push → curl the Render UR
 Husky is the same tool you know from Node projects. It lives at the **repo root** (`book-api/`, where
 `.git` is), not inside `book/`.
 
-0. - [ ] **Set up Husky.**
-     - [ ] `npm init -y` at the repo root, then `npm i -D husky` and `npx husky init`
-     - [ ] Add `node_modules/` to `.gitignore`
-     - [ ] **pre-commit** hook: `cd book && ./mvnw -q compile` (switch it to `./mvnw -q test` once Stage F has tests)
-     - [ ] *(Optional)* **commit-msg** hook: use commitlint or a small regex check so messages follow
+0. - [ ] **Set up Husky.** 
+** NO HUSKY IN JAVA SO EXPLORE MORE**
+     - [X] `npm init -y` at the repo root, then `npm i -D husky` and `npx husky init`
+     - [X] Add `node_modules/` to `.gitignore`
+     - [X] **pre-commit** hook: `cd book && ./mvnw -q compile` (switch it to `./mvnw -q test` once Stage F has tests)
+     - [X] *(Optional)* **commit-msg** hook: use commitlint or a small regex check so messages follow
            `type(scope): message` (see `PROJECT_GUIDE.md` → Git)
-     - [ ] Commit `package.json`, `package-lock.json` and `.husky/`
+     - [X] Commit `package.json`, `package-lock.json` and `.husky/`
      ✔ A commit containing a Java compile error is **blocked**, and a clean commit goes through.
 
 ## Stage A: Clean up what exists 🧹

@@ -26,17 +26,16 @@ Husky is the same tool you know from Node projects. It lives at the **repo root*
 
 ## Stage A: Clean up what exists 🧹
 
-1. - [ ] **Constructor injection.** In `BookService` and `BookController`, swap field `@Autowired` for
+1. - [X] **Constructor injection.** In `BookService` and `BookController`, swap field `@Autowired` for
          `private final` fields set through the constructor. *(Why: see `PROJECT_GUIDE.md` → Conventions)*
          ✔ No `@Autowired` in the project.
 2. - [X] **Fix the `ibsn` typo** so it reads `isbn` in both DTOs. The JSON key follows the field name.
          ✔ `curl /api/v1/books` shows `"isbn"`.
 3. - [X] **Tidy `Book`.** Make `id` a `Long` and have `setId` take a `Long` (right now it takes an `int`).
-         Delete the stray `getTui()`. The discount message says "0 and 50" but the check allows
-         100, so make them agree.
+         Delete the stray `getTui()`. `price` and `applyDiscount()` were removed: BookHub has no prices.
 4. - [X] **Tidy `BookRepository`.** `findByIsbn` → `Optional<Book>`. Add `existsByIsbn` and
          `findByTitleContainingIgnoreCase`. Remove the redundant `findAll()` redeclaration.
-5. - [ ] **One mapper.** Move entity → DTO into one place (a static `BookResponseDto.from(Book)` or a
+5. - [X] **One mapper.** Move entity → DTO into one place (a static `BookResponseDto.from(Book)` or a
          `BookMapper`) so the constructor call stops being copied into every method.
 6. - [X] **Housekeeping.** Choose `service` or `services` as the package name and use it everywhere. Delete
          the empty `database/` package. Delete `DatabaseTestRunner` once you no longer need it.
@@ -50,7 +49,7 @@ Husky is the same tool you know from Node projects. It lives at the **repo root*
 8.  - [X] **Real 404s.** `getBookById` throws `ResourceNotFoundException`, not a bare `RuntimeException`.
           Create a `@RestControllerAdvice` and map it to 404 using `ErrorResponse`.
           ✔ `curl -i localhost:8080/api/v1/books/999` returns 404 JSON, not a 500.
-9.  - [ ] **Validation.** Put `@NotBlank` on title/author/isbn in `BookRequestDto`, `@Positive` on price, and
+9.  - [X] **Validation.** Put `@NotBlank` on title/author/isbn in `BookRequestDto`, and
           a size/pattern rule on isbn. Handle `MethodArgumentNotValidException` → 400 with
           `fieldErrors` such as `{"title": "must not be blank"}`.
 
@@ -66,12 +65,12 @@ Husky is the same tool you know from Node projects. It lives at the **repo root*
           the reads. Look up "dirty checking" to see why PUT works without `save()`.
 14. - [ ] **Service purity.** No `Http*`, `ResponseEntity`, or web annotation anywhere in the service.
           ✔ Grepping the service for `Http` and `ResponseEntity` finds nothing.
-15. - [ ] **Link it.** Add `"books": "/api/v1/books"` to the links map in `RootController`.
+15. - [X] **Link it.** Add `"books": "/api/v1/books"` to the links map in `RootController`.
 16. - [ ] **Exercise everything**, locally first and then on Render (the first request after idling can take 30–60 s):
 
     ```bash
     curl -s -X POST localhost:8080/api/v1/books -H 'Content-Type: application/json' \
-      -d '{"title":"Clean Code","author":"Robert C. Martin","isbn":"9780132350884","publisher":"Prentice Hall","publishedYear":"2008","price":35.5}'
+      -d '{"title":"Clean Code","author":"Robert C. Martin","isbn":"9780132350884","publisher":"Prentice Hall","publishedYear":"2008"}'
     curl -s  localhost:8080/api/v1/books
     curl -i  localhost:8080/api/v1/books/999                                                 # 404
     curl -i -X POST localhost:8080/api/v1/books -H 'Content-Type: application/json' -d '{}'  # 400
@@ -92,10 +91,8 @@ Husky is the same tool you know from Node projects. It lives at the **repo root*
 
 19. - [ ] **PATCH** `/api/v1/books/{id}`: update only the fields that were sent. Write down how this differs from PUT.
 20. - [ ] **Search:** `GET /api/v1/books?author=…&title=…` using your derived queries.
-21. - [ ] **Pagination & sorting:** `?page=0&size=10&sort=price,desc` using `Pageable`. Look at how the
+21. - [ ] **Pagination & sorting:** `?page=0&size=10&sort=title,asc` using `Pageable`. Look at how the
           JSON changes, and note that the repository didn't need any changes.
-22. - [ ] **Discount:** `POST /api/v1/books/{id}/discount` with body `{"percentage": 10}` calls
-          `Book.applyDiscount()`. Map its `IllegalArgumentException` to 400.
 
 ## Stage F: Tests 🧪
 

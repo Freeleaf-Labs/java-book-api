@@ -2,7 +2,6 @@ package np.com.milapmagar.book.controller;
 
 import np.com.milapmagar.book.dto.BookResponseDto;
 import np.com.milapmagar.book.services.BookService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,8 +14,11 @@ import java.util.List;
 @RequestMapping("/api/v1/books")
 public class BookController {
 
-    @Autowired
-    private BookService bookService;
+    private final BookService bookService;
+
+    public BookController(BookService bookService) {
+        this.bookService = bookService;
+    }
 
     // fetch for all books
     @GetMapping
@@ -33,7 +35,7 @@ public class BookController {
 
     // add books
 
-    // update books by title, author, publisher, price, discount
+    // update books by title, author, publisher
 
     // delete book by id
 }

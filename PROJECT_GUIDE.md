@@ -11,7 +11,7 @@ this guide explains *how* the project works and *why*.
 |---|---|
 | Location / package | `book-api/book/` · `np.com.milapmagar.book` |
 | Stack | Spring Boot 4.1.1 · Java 25 · Maven wrapper `./mvnw` (no system Maven needed) |
-| Database | PostgreSQL 18: `compose.yaml` locally (host port **5433**), Render Postgres in prod |
+| Database | PostgreSQL 18: `compose.yaml` locally (host port **5434**), Render Postgres in prod |
 | Deployment | Docker image on Render, auto-deploys on push to `main` (see `DOCKER_DEPLOY.md`) |
 | Base URL | `/api/v1` |
 
@@ -27,7 +27,7 @@ this guide explains *how* the project works and *why*.
 - [x] **Baseline:** app starts on 8080, `/actuator/health` → `UP`
 - [x] **Packages:** `controller`, `services`, `repository`, `model`, `dto`, `exception`
 - [x] **Containerise & deploy:** multi-stage `Dockerfile`, `compose.yaml`, env-var driven config, live on Render
-- [x] **Entity:** `Book` with private fields, `applyDiscount()`, `equals`/`hashCode` on `isbn`
+- [x] **Entity:** `Book` with private fields, `equals`/`hashCode` on `id`
 - [x] **Repository:** `BookRepository extends JpaRepository<Book, Long>` with derived queries
 - [x] **DTOs:** `BookRequestDto` (no `id`) and `BookResponseDto` (with `id`) as records
 - [x] **First reads:** `BookService` + `BookController` serving list and by-id as DTOs
@@ -69,7 +69,7 @@ entity → repository → service → controller.
 
 ## 3. Running locally
 
-`compose.yaml` publishes Postgres on host port **5433**, but `application.yaml` defaults to `5432`.
+`compose.yaml` publishes Postgres on host port **5434**, but `application.yaml` defaults to `5432`.
 Pick one of these:
 
 ```bash
@@ -78,7 +78,7 @@ docker compose up --build
 
 # B) Postgres in Docker, app from IDE/mvnw. Use this while coding.
 docker compose up -d postgres
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/bookdb ./mvnw spring-boot:run
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/bookdb ./mvnw spring-boot:run
 ```
 
 For B in IntelliJ, put the same variable in the `BookApplication` run configuration.

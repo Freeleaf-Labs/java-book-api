@@ -4,6 +4,7 @@ import np.com.milapmagar.book.model.Book;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
     // Leave this section empty as it creates automatically by spring boot
@@ -26,8 +27,9 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     // author names
     List<Book> findByAuthor(String author);
     // ISBN number
-    List<Book> findByIsbn(String isbn);
-    List<Book> existsByIsbn(String isbn);
+    Optional<Book> findByIsbn(String isbn);
+    boolean existsByIsbn(String isbn);
     // titles
     List<Book> findByTitle(String title);
+    List<Book> findByTitleContainingIgnoreCase(String title);
 }

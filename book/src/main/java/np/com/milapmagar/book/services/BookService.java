@@ -2,28 +2,31 @@ package np.com.milapmagar.book.services;
 
 import np.com.milapmagar.book.dto.BookResponseDto;
 import np.com.milapmagar.book.exception.ResourceNotFoundException;
-import np.com.milapmagar.book.model.Book;
 import np.com.milapmagar.book.repository.BookRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class BookService {
 
-    @Autowired
-    private BookRepository bookRepository;
+    private final BookRepository bookRepository;
+
+    public BookService(BookRepository bookRepository) {
+        this.bookRepository = bookRepository;
+    }
 
     public List<BookResponseDto> getBooks(){
         return bookRepository.findAll().stream()
-                .map(book -> new BookResponseDto(book.getId(), book.getTitle(), book.getAuthor(), book.getPublisher(), book.getPublishedYear(), book.getIsbn(), book.getPrice()))
+                .map(BookResponseDto::from)
                 .toList();
     }
 
     public BookResponseDto getBookById(Long id){
-        Book book = bookRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Book not found"));
-        // returning the book value
-        return new BookResponseDto(book.getId(), book.getTitle(), book.getAuthor(), book.getPublisher(), book.getPublishedYear(), book.getIsbn(), book.getPrice());
+        return bookRepository.findById(id)
+                .map(BookResponseDto::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Book with id " + id + " not found"));
     }
 }

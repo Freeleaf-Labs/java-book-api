@@ -11,7 +11,7 @@ public class Book {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     // this above generative value generates id automatically
     @Column(name = "id")
-    private long id;
+    private Long id;
 
     @Column(name = "title")
     private String title;
@@ -25,9 +25,6 @@ public class Book {
     @Column(name = "publishedYear")
     private String publishedYear;
 
-    @Column(name = "price")
-    private Double price;
-
     @Column(name = "ISBN", unique = true, nullable = false)
     private String isbn;
 
@@ -35,26 +32,25 @@ public class Book {
     public Book() {
     }
 
-    public Book(String title, String author, String publisher, String publishedYear, Double price, String isbn) {
+    public Book(String title, String author, String publisher, String publishedYear, String isbn) {
         this.title = title;
         this.author = author;
         this.publisher = publisher;
         this.publishedYear = publishedYear;
-        this.price = price;
         this.isbn = isbn;
     }
 
     /** GETTERS & SETTERS **/
 
     // ID
-    public long getId() {
+    public Long getId() {
         return id;
     }
-    public void setId(int id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    // TITLE (Added missing setter)
+    // TITLE
     public String getTitle() {
         return title;
     }
@@ -94,14 +90,6 @@ public class Book {
         this.isbn = isbn;
     }
 
-    // PRICE
-    public Double getPrice() {
-        return price;
-    }
-    public void setPrice(Double price) {
-        this.price = price;
-    }
-
     @Override
     public String toString() {
         return "Book {" +
@@ -110,21 +98,8 @@ public class Book {
                 ", author='" + author + '\'' +
                 ", publisher='" + publisher + '\'' +
                 ", publishedYear='" + publishedYear + '\'' +
-                ", price=" + price +
                 ", isbn='" + isbn + '\'' +
                 '}';
-    }
-
-    /** APPLY DISCOUNT**/
-    public void applyDiscount(double percentage){
-        if(percentage <= 0 || percentage > 100){
-            throw new IllegalArgumentException("Discount percentage must be between 0 and 50.");
-        }else if(this.price == null || this.price <= 0){
-            throw new IllegalStateException("Cannot apply a discount to a book to no price");
-        }
-
-        double discountedAmount = this.price * (percentage / 100.00);
-        this.price -= discountedAmount;
     }
 
     /** HASH code && EQUALS**/
@@ -134,13 +109,13 @@ public class Book {
         if(obj == null || getClass() != obj.getClass()) return false; // check the book is even book or anything else
         Book book = (Book) obj;
 
-        // two books are equal if their ISBNs match (&& ISBN is not null)
-        return isbn != null && isbn.equals(book.isbn); // checking with isbn number as one particular book has one isbn number.
+        // two books are equal if they are the same database row; a book that is not saved yet (id == null) equals only itself.
+        return id != null && id.equals(book.id);
     }
 
     @Override
     public int hashCode(){
-        // creating a fingerprint to find the book out once needed.
-        return java.util.Objects.hashCode(isbn);
+        // constant per class, so the hash does not change when save() assigns the id.
+        return getClass().hashCode();
     }
 }

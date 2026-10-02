@@ -24,7 +24,7 @@ Book API manages a small library catalogue: books, and later members and loans. 
 isn't only to ship endpoints but to build them *properly*:
 
 - 🧱 **Layered**: controller → service → repository → entity, each with one job
-- 🔒 **Encapsulated**: entities guard their own rules (e.g. `applyDiscount()` rejects invalid input)
+- 🔒 **Encapsulated**: entity fields are private and only reachable through the entity's own methods
 - 🔌 **Dependency-inverted**: constructor injection with `final` fields, interfaces all the way down
 - 📦 **DTOs at the boundary**: entities never leak over HTTP
 - 🐳 **Container-first**: one multi-stage Docker image, configured entirely by environment variables
@@ -70,13 +70,13 @@ The API is now on **http://localhost:8080**.
 cd book
 docker compose up -d postgres
 
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/bookdb \
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/bookdb \
 SPRING_PROFILES_ACTIVE=dev \
 ./mvnw spring-boot:run
 ```
 
-> ⚠️ **Port note:** the Docker Postgres is published on host port **5433**, not 5432, so it
-> doesn't clash with a locally installed Postgres. Point your DB client at `localhost:5433`
+> ⚠️ **Port note:** the Docker Postgres is published on host port **5434**, not 5432, so it
+> doesn't clash with a locally installed Postgres. Point your DB client at `localhost:5434`
 > (user `book`, password `book`, database `bookdb`).
 
 ### Check it's alive
@@ -94,24 +94,23 @@ curl localhost:8080/actuator/health   # {"status":"UP"}
 |---|---|---|:---:|
 | `GET` | `/` | Service name, status and links | ✅ |
 | `GET` | `/actuator/health` | Health check (used by Render) | ✅ |
-| `GET` | `/api/books` | List all books | 🚧 |
-| `GET` | `/api/books/{id}` | Get one book (`404` if missing) | 🚧 |
-| `POST` | `/api/books` | Create a book (`201` + `Location`) | 🚧 |
-| `PUT` | `/api/books/{id}` | Update a book | 🚧 |
-| `DELETE` | `/api/books/{id}` | Delete a book (`204`) | 🚧 |
+| `GET` | `/api/v1/books` | List all books | ✅ |
+| `GET` | `/api/v1/books/{id}` | Get one book (`404` if missing) | ✅ |
+| `POST` | `/api/v1/books` | Create a book (`201` + `Location`) | 🚧 |
+| `PUT` | `/api/v1/books/{id}` | Update a book | 🚧 |
+| `DELETE` | `/api/v1/books/{id}` | Delete a book (`204`) | 🚧 |
 
 <details>
 <summary><b>Example request (once the book endpoints land)</b></summary>
 
 ```bash
-curl -s -X POST localhost:8080/api/books \
+curl -s -X POST localhost:8080/api/v1/books \
   -H 'Content-Type: application/json' \
   -d '{
         "title": "Clean Code",
         "author": "Robert C. Martin",
         "publisher": "Prentice Hall",
         "publishedYear": "2008",
-        "price": 40.0,
         "isbn": "9780132350884"
       }'
 ```
@@ -120,7 +119,7 @@ Errors always come back in one consistent JSON shape:
 
 ```json
 {
-  "timeStamp": "2026-09-29T08:15:30Z",
+  "timestamp": "2026-09-29T08:15:30Z",
   "status": 404,
   "error": "Not Found",
   "message": "Book with id 999 not found"

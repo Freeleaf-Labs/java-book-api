@@ -3,7 +3,7 @@
     <option name="ALTERNATIVE_JRE_PATH" value="graalvm-25" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <envs>
-      <env name="SPRING_DATASOURCE_URL" value="jdbc:postgresql://localhost:5434/bookdb" />
+      <env name="SPRING_DATASOURCE_URL" value="jdbc:postgresql://localhost:5433/bookdb" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="np.com.milapmagar.book.BookApplication" />
     <module name="book" />

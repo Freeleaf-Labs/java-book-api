@@ -18,6 +18,24 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    // Invalid Credentials Exceptions
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(
+            InvalidCredentialsException ex
+    ){
+        return respond(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    // Register Email already existed
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
+            EmailAlreadyExistsException ex
+    ) {
+        return respond(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+
+    // Resource not found exception
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex){
         return respond(HttpStatus.NOT_FOUND, ex.getMessage());

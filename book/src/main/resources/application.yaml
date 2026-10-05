@@ -2,7 +2,7 @@ spring:
   application:
     name: book
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bookdb}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/bookdb}
     username: ${SPRING_DATASOURCE_USERNAME:book}
     password: ${SPRING_DATASOURCE_PASSWORD:book}
   jpa:

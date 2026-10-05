@@ -66,7 +66,7 @@ S4. - [ ] **`UserRepository` queries.** `Optional<User> findByEmail(String email
       ✔ Compiles; the app still starts.
 
 S5. - [ ] **DTOs as records** (replace the empty classes).
-      - [ ] `RegisterRequest`: `email` (`@NotBlank @Email`), `password` (`@NotBlank @Size(min = 8, max = 72)`),
+      - [ ] `RegisterRequestDto`: `email` (`@NotBlank @Email`), `password` (`@NotBlank @Size(min = 8, max = 72)`),
             `displayName` (`@NotBlank @Size(min = 2, max = 50)`). *(Why 72: BCrypt ignores everything
             after 72 bytes.)*
       - [ ] `UserResponse`: `id, email, displayName, role, enabled, createdAt`, with a static

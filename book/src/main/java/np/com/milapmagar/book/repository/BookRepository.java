@@ -18,7 +18,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     *
     * So, those above methods are created automatically without any callouts and other
     * effort that is basically the beauty of spring boot API's.
-    * */
+     * */
 
     // if only is custom query needed then you can add like findByTitle(String Title)
     // -> which can basically be for finding the title and all sort of jobs

@@ -2,6 +2,8 @@ package np.com.milapmagar.book.model;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "book")
 public class Book {
@@ -27,6 +29,9 @@ public class Book {
 
     @Column(name = "ISBN", unique = true, nullable = false)
     private String isbn;
+
+    @Column(name = "Price")
+    private BigDecimal price;
 
     /** CONSTRUCTORS **/
     public Book() {
@@ -90,6 +95,13 @@ public class Book {
         this.isbn = isbn;
     }
 
+    // Price
+    public BigDecimal getPrice(){return price;}
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+
     @Override
     public String toString() {
         return "Book {" +
@@ -99,6 +111,7 @@ public class Book {
                 ", publisher='" + publisher + '\'' +
                 ", publishedYear='" + publishedYear + '\'' +
                 ", isbn='" + isbn + '\'' +
+                ", price='" + price + '\'' +
                 '}';
     }
 

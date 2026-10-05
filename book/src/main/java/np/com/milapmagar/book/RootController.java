@@ -23,8 +23,8 @@ public class RootController {
                 appName,
                 "running",
                 Map.of(
-                        "health", "/actuator/health"
-                        // add "books": "/api/books" once BookController has routes
+                        "health", "/actuator/health",
+                        "books", "/api/v1/books"
                 ));
     }
 

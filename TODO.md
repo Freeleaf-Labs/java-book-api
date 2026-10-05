@@ -184,7 +184,7 @@ S13. - [ ] **Refresh tokens** (`POST /auth/refresh`, `POST /auth/logout`).
              refresh token and a new access token (**rotation**), and return `AuthResponse`.
        - [ ] `POST /auth/logout`: revoke the token, clear the cookie (max age 0), return **204**.
        ✔ `curl -c jar.txt` on login, then `curl -b jar.txt -c jar.txt -X POST …/auth/refresh` → 200
-         with a new `accessToken`. Replaying the **old** cookie value → 401. After logout, refresh → 401.
+****         with a new `accessToken`. Replaying the **old** cookie value → 401. After logout, refresh → 401.
 
 S14. - [ ] **CORS** for the frontend.
        - [ ] A `CorsConfigurationSource` bean: origins from `app.cors.origins: ${APP_CORS_ORIGINS:http://localhost:5173}`,

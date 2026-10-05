@@ -1,597 +1,263 @@
-# Book API — Learning Report & Build Checklist
+# Book API: Project Guide
 
-A book-keeping REST API (simple datasets) built with Spring Boot, used as a vehicle for
-learning **layered architecture**, **OOP concepts**, and **SOLID principles**.
+How to work on this project: what it is, how to run it, the rules the code follows, and the
+concepts behind them. The list of what's left to build lives in **[`TODO.md`](TODO.md)**.
 
-> **How to use this file:** work top to bottom. Sections 1–5 are *understanding*.
-> Section 6 is the **checklist** you tick off while building. No Java code is given on
-> purpose — you write it, the file tells you *what* and *why*.
-
----
-
-## 1. Where the project stands today
-
-*Last updated: 2026-09-29 — deployment pipeline done, API creation starts at Phase 2.*
+A book-keeping REST API built with Spring Boot, used to learn **layered architecture**,
+**OOP**, and **SOLID**. No Java solutions are given here on purpose. You write the code;
+this guide explains *how* the project works and *why*.
 
 | Thing | Value |
 |---|---|
-| Location | `book-api/book/` |
-| Package | `np.com.milapmagar.book` |
-| Spring Boot | 4.1.1 |
-| Java | 25 |
-| Build tool | Maven, via the wrapper `./mvnw` (no system Maven needed) |
-| Database now | PostgreSQL 18 — `compose.yaml` locally, Render Postgres in production |
-| Deployment | Docker image on Render, auto-deploys on push (see `DOCKER_DEPLOY.md`) |
+| Location / package | `book-api/book/` · `np.com.milapmagar.book` |
+| Stack | Spring Boot 4.1.1 · Java 25 · Maven wrapper `./mvnw` (no system Maven needed) |
+| Database | PostgreSQL 18: `compose.yaml` locally (host port **5434**), Render Postgres in prod |
+| Deployment | Docker image on Render, auto-deploys on push to `main` (see `DOCKER_DEPLOY.md`) |
+| Base URL | `/api/v1` |
 
-Already on the classpath: **Web MVC**, **Data JPA**, **Validation**, **Actuator**, **DevTools**,
-**PostgreSQL driver**, **REST Docs** (test only). H2 is still in `pom.xml` but unused — remove it
-in Phase 7.
+---
 
-### 1.1 What exists right now
+## 1. Status
 
-| File | State | What to do with it |
-|---|---|---|
-| `BookApplication.java` | Done | Leave alone |
-| `RootController.java` | Done — `GET /` returns name, status, links | Add `"books": "/api/books"` to the links map in Phase 6 |
-| `HealthController.java` | `GET /health` returns a joke string | Delete once you trust `/actuator/health` (Render already uses that one) |
-| `controller/BookController.java` | Empty class, no annotations | Fill in Phase 6 |
-| `services/BookService.java` | Empty class, no annotations | Fill in Phase 5. Note: package is `services`, not `service` — pick one and stay consistent |
-| `dto/UserLoginRequest.java` | Record with `@NotBlank`; `@Email` imported but not applied | Not part of the Book API. Park it until Spring Security (post-Phase 10) — or delete it |
-| `exception/ResourceNotFoundException.java` | Done | Use it instead of a separate `BookNotFoundException`, or make `BookNotFoundException` extend it |
-| `exception/ErrorResponse.java` | Record: `timeStamp`, `status`, `error`, `message` | Change `LocalTime` → `Instant` (a time without a date is useless in logs); add a `fieldErrors` map for 400s |
-| `model/`, `repository/`, `database/` | Empty packages | `model` and `repository` fill in Phases 2–3. `database/` has no planned role — delete it or use it for Flyway-related config later |
-| `application.yaml` | Env-var driven, `ddl-auto: update`, port `${PORT:8080}` | Leave alone until Flyway |
-| `Dockerfile`, `.dockerignore`, `compose.yaml` | Done | **No changes needed while building the API** — see `DOCKER_DEPLOY.md` §8 |
+*Last updated: 2026-09-30.*
 
-### 1.2 Running locally — one gotcha
+**Live endpoints:** `GET /`, `GET /actuator/health`, `GET /api/v1/books`, `GET /api/v1/books/{id}`
 
-`compose.yaml` publishes Postgres on host port **5433**, but `application.yaml` defaults to
-`localhost:5432`. So pick one of these, and stick to it:
+**✅ Done so far**
+- [x] **Baseline:** app starts on 8080, `/actuator/health` → `UP`
+- [x] **Packages:** `controller`, `services`, `repository`, `model`, `dto`, `exception`
+- [x] **Containerise & deploy:** multi-stage `Dockerfile`, `compose.yaml`, env-var driven config, live on Render
+- [x] **Entity:** `Book` with private fields, `equals`/`hashCode` on `id`
+- [x] **Repository:** `BookRepository extends JpaRepository<Book, Long>` with derived queries
+- [x] **DTOs:** `BookRequestDto` (no `id`) and `BookResponseDto` (with `id`) as records
+- [x] **First reads:** `BookService` + `BookController` serving list and by-id as DTOs
+
+**▶ Next:** [`TODO.md`](TODO.md), Stage 0 (Husky), then Stage A.
+
+---
+
+## 2. Project structure
+
+```
+book/
+├── compose.yaml, Dockerfile, .dockerignore     # infra: leave alone while building the API
+├── pom.xml
+└── src/main/
+    ├── resources/application.yaml               # config, all values overridable by env vars
+    └── java/np/com/milapmagar/book/
+        ├── BookApplication.java                 # entry point: must sit ABOVE every other package
+        ├── RootController.java                  # GET / landing JSON
+        ├── controller/   # HTTP only: parse the request, call the service, build the response
+        ├── services/     # business rules: no HTTP, no SQL
+        ├── repository/   # JpaRepository interfaces: Spring writes the implementation
+        ├── model/        # @Entity classes: one per table
+        ├── dto/          # request/response records: the API contract
+        └── exception/    # custom exceptions, ErrorResponse, (soon) the global handler
+```
+
+**The request path:**
+
+```
+HTTP → Controller → Service → Repository → Entity → PostgreSQL
+          ↑ DTOs in/out      ↑ Entities stay below this line
+```
+
+When you add a feature, it usually touches each layer once, from the bottom up:
+entity → repository → service → controller.
+
+---
+
+## 3. Running locally
+
+`compose.yaml` publishes Postgres on host port **5434**, but `application.yaml` defaults to `5432`.
+Pick one of these:
 
 ```bash
-# A) Everything in Docker — app + db. Slow rebuilds, but zero config.
+# A) Everything in Docker. Slow rebuilds, zero config.
 docker compose up --build
 
-# B) Postgres in Docker, app from the IDE / mvnw — fast feedback, use this while coding.
+# B) Postgres in Docker, app from IDE/mvnw. Use this while coding.
 docker compose up -d postgres
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/bookdb ./mvnw spring-boot:run
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/bookdb ./mvnw spring-boot:run
 ```
 
-For B in IntelliJ, put the same variable in the `BookApplication` run configuration's
-environment variables.
-
-### 1.3 The loop from here on
-
-Deployment is solved once; every phase below now follows the same loop:
-
-```
-write code → run locally (1.2 B) → curl it → commit → push → Render redeploys → curl the Render URL
-```
-
-Pushing after each phase is cheap and catches "works on my machine" problems while the diff is
-still small.
-
----
-
-## 2. What actually happens when a Spring Boot app runs
-
-You said you know "Main file runs it, Controller maps the API". True, but incomplete.
-Here is the full mental model.
-
-### 2.1 Startup, in order
-
-1. `main()` calls `SpringApplication.run(...)`.
-2. Spring creates the **ApplicationContext** — a container that holds objects.
-3. **Component scanning**: Spring scans the package of your main class *and every
-   sub-package*, looking for classes marked as components
-   (`@Component`, `@Service`, `@Repository`, `@RestController`, `@Configuration`).
-4. Each such class is instantiated once and stored in the container. A container-managed
-   object is called a **bean**.
-5. **Dependency injection**: if a bean's constructor asks for another bean, Spring finds
-   it and passes it in. You never call `new` on your own services.
-6. **Auto-configuration**: Spring inspects the classpath and configures what it finds
-   (JPA present → build a `DataSource` and an `EntityManager`; Web MVC present → start
-   an embedded Tomcat on port 8080).
-7. Tomcat starts listening. The app is up.
-
-**Consequence worth remembering:** your main class must sit *above* everything else in the
-package tree. `np.com.milapmagar.book.BookApplication` can see
-`np.com.milapmagar.book.controller.*`, but would never see `np.com.other.*`.
-
-### 2.2 The path of one HTTP request
-
-```
-HTTP request
-   ↓
-Controller      — talks HTTP. Reads the request, returns a response. Nothing else.
-   ↓
-Service         — the business rules. Knows nothing about HTTP or SQL.
-   ↓
-Repository      — talks to the database. An interface; Spring writes the implementation.
-   ↓
-Entity          — a Java class mapped to a database table.
-   ↓
-PostgreSQL
-```
-
-And two supporting cast members:
-
-- **DTO** (Data Transfer Object) — the shape you accept and return over HTTP. Deliberately
-  *not* the Entity.
-- **Exception handler** — turns thrown exceptions into clean JSON error responses.
-
-### 2.3 Why not just put everything in the Controller?
-
-You can. It works. It also means: you cannot unit-test the rules without starting a web
-server, you cannot reuse the rules from a scheduled job or a CLI, and changing the JSON
-shape risks changing your database schema. The layers exist to keep *reasons to change*
-apart. That is literally the first SOLID principle, arriving early.
-
-### 2.4 Why a DTO instead of returning the Entity
-
-Four concrete reasons:
-
-1. **Leakage** — an Entity returned as JSON exposes every column, including ones you did
-   not mean to publish.
-2. **Coupling** — renaming a column would silently break every API client.
-3. **Input is not output** — on create, the client must not send `id`; in the response it
-   must be present. Two shapes, two classes (`BookRequest`, `BookResponse`).
-4. **Lazy loading** — serialising a JPA entity with relationships can trigger surprise
-   database queries or infinite recursion.
-
----
-
-## 3. OOP concepts, mapped onto *this* project
-
-Not textbook definitions — where each one physically lives in the Book API.
-
-### Encapsulation — *hide the data, expose behaviour*
-
-The `Book` entity keeps its fields private. Outside code cannot set an invalid state
-directly. Instead of a public setter for copies, the entity gets behaviour:
-`borrowOneCopy()` which refuses when the count is already zero.
-
-> **The smell it prevents:** the "anaemic model" — an entity that is nothing but getters
-> and setters, with all the rules scattered across services that forget to check them.
-
-### Abstraction — *depend on the idea, not the machinery*
-
-`BookRepository` is an **interface**. Your service knows only "something can save and find
-books". It does not know about JDBC, connection pools, or SQL. Spring Data generates the
-implementation at runtime from the method names.
-
-### Inheritance — *share structure, carefully*
-
-Use it where the relationship is genuinely "is-a":
-
-- A `BookNotFoundException` **is an** exception → extends `RuntimeException`.
-- Entities that all need `createdAt` / `updatedAt` → a shared `BaseEntity`
-  (`@MappedSuperclass`) they extend.
-
-Use it sparingly. Two classes sharing a few fields is not a reason to make one the parent
-of the other. Prefer composition — hold a reference instead of extending.
-
-### Polymorphism — *one call, many behaviours*
-
-One interface, several implementations, chosen at runtime. In this project:
-
-- `NotificationSender` with an email implementation and a log implementation — the service
-  calls `send(...)` and does not care which arrived.
-- Spring's own exception handling: you throw different exception *types*, one handler
-  method per type decides the HTTP status.
-
----
-
-## 4. SOLID, mapped onto *this* project
-
-| Principle | In one line | Where it shows up here |
-|---|---|---|
-| **S** — Single Responsibility | One class, one reason to change | Controller changes when the API changes; Service when the rules change; Repository when storage changes. Three files, not one. |
-| **O** — Open/Closed | Extend behaviour without editing existing code | Adding a new export format (CSV, JSON) means adding a new `BookExporter` implementation — not adding an `if` to the old one. |
-| **L** — Liskov Substitution | A subtype must work anywhere its parent does | If `BookExporter` promises "never returns null", every implementation must honour it. A subclass that throws where the parent returned a value breaks callers. |
-| **I** — Interface Segregation | Small focused interfaces, not one fat one | Don't build a `BookOperations` with twelve methods that implementations half-implement. Split by use case. |
-| **D** — Dependency Inversion | Depend on abstractions, not concretions | `BookService` holds a `BookRepository` *interface*, injected through its constructor. In a unit test you pass a fake. No database needed. |
-
-### The one habit that gives you most of SOLID for free
-
-**Constructor injection with `final` fields.**
-
-- Field is `final` → the dependency cannot be swapped after construction.
-- It is an interface → you have Dependency Inversion.
-- The constructor makes dependencies *visible* → if it needs six things, the class is doing
-  too much, and Single Responsibility tells you so immediately.
-- No Spring needed to build the object in a test.
-
-Avoid `@Autowired` on fields. It hides dependencies and makes the class untestable without
-reflection.
-
----
-
-## 5. PostgreSQL setup (Docker)
-
-You have Docker 29.7.2. Docker is preferred over the local install: disposable, versioned
-with the project, identical on any machine.
-
-### 5.1 The compose file
-
-Create `book-api/book/compose.yaml`:
-
-```yaml
-services:
-  postgres:
-    image: postgres:18
-    environment:
-      POSTGRES_DB: bookdb
-      POSTGRES_USER: book
-      POSTGRES_PASSWORD: book
-    ports:
-      - "5432:5432"
-    volumes:
-      - book-pgdata:/var/lib/postgresql/data
-
-volumes:
-  book-pgdata:
-```
-
-The named volume means your rows survive `docker compose down`. To wipe the database
-completely: `docker compose down -v`.
-
-### 5.2 Commands you will use constantly
+For B in IntelliJ, put the same variable in the `BookApplication` run configuration.
 
 ```bash
-docker compose up -d          # start Postgres in the background
-docker compose ps             # is it healthy?
-docker compose logs -f postgres
-docker compose down           # stop, keep data
-docker compose down -v        # stop, destroy data
-
-# open a SQL prompt inside the container
-docker compose exec postgres psql -U book -d bookdb
-#   \dt            list tables
-#   \d books       describe the books table
-#   \q             quit
+docker compose ps                                     # status
+docker compose logs -f postgres                       # logs
+docker compose down                                   # stop, keep data
+docker compose down -v                                # stop, wipe data
+docker compose exec postgres psql -U book -d bookdb   # SQL prompt: \dt  \d book  \q
+./mvnw test                                           # run the tests
 ```
 
-### 5.3 Wire Spring to it
+---
 
-Swap the H2 dependency in `pom.xml` for the PostgreSQL driver
-(`org.postgresql:postgresql`, scope `runtime`), then set `application.yaml`:
+## 4. Workflow
 
-```yaml
-spring:
-  application:
-    name: book
-  datasource:
-    url: jdbc:postgresql://localhost:5432/bookdb
-    username: book
-    password: book
-  jpa:
-    hibernate:
-      ddl-auto: update      # learning only — see the warning below
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+### 4.1 The dev loop
+
+```
+pick the next step in TODO.md → write code → run locally (§3 B) → curl it
+→ tick the box in TODO.md → commit → push → Render redeploys → curl the Render URL
 ```
 
-**`ddl-auto` — know what you are choosing:**
+Push after every step. Small diffs make "works on my machine" bugs easy to find. If something
+works locally but not on Render (the first request after idling can take 30–60 s, so be patient),
+you've found a real bug.
 
-| Value | Behaviour | Use when |
+### 4.2 Git
+
+- Work on a branch named `feat/<thing>` or `fix/<thing>`, then open a PR into `main`. Merging to `main` deploys.
+- Commit messages follow the existing style: `type(scope): what changed`
+  - e.g. `added(dto): book request/response records`, `fixes(controller): 404 for missing book`
+- Keep one TODO step per commit where possible.
+- Husky git hooks (set up in `TODO.md` Stage 0) compile the project before every commit. Don't skip them with `--no-verify`.
+
+### 4.3 Keeping the docs current
+
+- **`TODO.md`:** tick the box when the step's ✔ check passes, and update the "Next step" line.
+- **This guide:** update §1 Status when a stage finishes, and add to §7.4 whenever you hit a bug worth remembering.
+
+---
+
+## 5. Conventions (the rules this codebase follows)
+
+These are the rules. Some existing code still breaks them; `TODO.md` Stage A fixes that.
+
+**Layers**
+- Controllers only translate HTTP ↔ Java. No business logic, and they never call a repository directly.
+- Services hold the rules. No `HttpServletRequest`, `ResponseEntity`, or web annotations.
+- Services take and return **DTOs**. Entities never cross the HTTP boundary.
+- Entity → DTO conversion lives in **one** place (`BookResponseDto.from(Book)` or a `BookMapper`).
+
+**Dependencies**
+- Constructor injection into `private final` fields. **Never** `@Autowired` on fields.
+- If a constructor needs more than ~4 dependencies, the class is doing too much. Split it.
+
+**REST**
+- All resources live under `/api/v1/<plural-noun>`. Use a bare `@GetMapping` for the collection route (see §7.4).
+- Status codes: `200` read/update · `201` + `Location` create · `204` delete · `400` validation ·
+  `404` not found · `409` conflict (e.g. duplicate ISBN).
+- Request bodies are always `@Valid @RequestBody`; the constraints live on the request DTO.
+
+**Errors**
+- Services **throw** typed exceptions (`ResourceNotFoundException`, `DuplicateIsbnException`). Never
+  return `null`, and never throw a bare `RuntimeException`.
+- One `@RestControllerAdvice` maps exceptions → status codes, and every error body is an `ErrorResponse`.
+- Clients never see a stack trace.
+
+**Data**
+- Writes are `@Transactional`; reads are `@Transactional(readOnly = true)`.
+- `equals`/`hashCode` use the business key (`isbn`), never the generated `id`.
+- Entities guard their own state with methods (`applyDiscount()`), not bare setters called from services.
+- Schema: `ddl-auto: update` for now. Once Flyway lands, every schema change becomes a new `V<n>__*.sql` file.
+
+**Config & secrets**
+- Every setting in `application.yaml` is `${ENV_VAR:local-default}`. Real credentials only come from Render env vars.
+
+**Tests**
+- Service tests use a Mockito mock repository: no Spring context, no DB, and they run in milliseconds.
+- Controller tests (`@WebMvcTest`) assert status codes and JSON only, not business rules.
+
+---
+
+## 6. Deployment
+
+
+auto-deploys on push to `main`, with its health check on `/actuator/health`. You almost never need to
+touch the `Dockerfile` or `compose.yaml` while building the API. Full details are in `DOCKER_DEPLOY.md`.
+
+| `ddl-auto` | Behaviour | Use when |
 |---|---|---|
-| `none` | Hibernate touches nothing | Production, or once you adopt Flyway |
-| `validate` | Checks entities match the schema, fails otherwise | Safe default once the schema is stable |
-| `update` | Adds missing tables/columns. Never drops or renames. | Learning, early development |
-| `create-drop` | Rebuilds the schema every start, drops on shutdown | Tests |
-
-`update` is convenient and *silently drifts*. It will not remove a column you deleted from
-an entity. Once the model settles, move to **Flyway** migrations (versioned `.sql` files in
-`src/main/resources/db/migration`) and set `ddl-auto: validate`. That is the professional
-setup and it is Phase 7 below.
-
-> **Optional shortcut:** Spring Boot can start `compose.yaml` itself and inject the
-> connection details, via the `spring-boot-docker-compose` module. Nice once you're
-> comfortable — but do the manual `docker compose up -d` first, so you understand what is
-> being automated. Verify the artifact id resolves for Boot 4.1 before relying on it.
+| `none` | Touches nothing | Prod with Flyway |
+| `validate` | Fails if entities ≠ schema | Once Flyway owns the schema |
+| `update` | Adds, never drops/renames, and drifts silently | Learning (current setting) |
+| `create-drop` | Rebuild on start, drop on stop | Tests |
 
 ---
+The app runs as a Docker image on Render, configured entirely by environment variables. It
+## 7. Concepts
 
-## 6. The build checklist
+### 7.1 How Spring Boot starts
+1. `main()` calls `SpringApplication.run(...)`, which creates the **ApplicationContext** (the bean container).
+2. **Component scan** searches the main class's package and every sub-package for `@Component`, `@Service`,
+   `@Repository`, `@RestController`, and `@Configuration`.
+3. Each one is created once as a **bean**, and its dependencies are **injected** through constructors. You never `new` a service.
+4. **Auto-configuration** reads the classpath: JPA gives a DataSource + EntityManager, and Web MVC gives embedded Tomcat.
 
-Work one phase at a time. **Run the app after every phase.** A phase is not done until its
-*Verify* line passes.
+### 7.2 Why DTOs, not Entities
+1. **Leakage:** every column gets exposed.
+2. **Coupling:** renaming a column breaks clients.
+3. **Input ≠ output:** a create request has no `id`, but the response does.
+4. **Lazy loading:** you get surprise queries or infinite recursion.
 
-### Phase 0 — Baseline
+### 7.3 OOP & SOLID in this project
 
-- [X] `cd book-api/book`
-- [X] `./mvnw spring-boot:run` — confirm it starts on port 8080
-- [X] Open `http://localhost:8080/actuator/health` → expect `{"status":"UP"}`
-- [X] Read `BookApplication.java`. Identify the annotation that triggers component
-      scanning and auto-configuration.
-- [X] **Verify:** app starts, health endpoint responds.
+| Concept | Where it lives here |
+|---|---|
+| **Encapsulation** | Private `Book` fields; behaviour like `applyDiscount()` guards state. Avoid the "anaemic model". |
+| **Abstraction** | `BookRepository` is an interface; Spring Data writes the implementation. |
+| **Inheritance** | Only for real "is-a": `DuplicateIsbnException extends RuntimeException`, `Book extends BaseEntity`. |
+| **Polymorphism** | `BookExporter` implementations; `@ExceptionHandler` picks a response by exception *type*. |
+| **S**: Single Responsibility | Controller changes with the API, Service with the rules, Repository with storage. |
+| **O**: Open/Closed | A new export format means a new class, not a new `if`. Count the files you *edit*. |
+| **L**: Liskov | Every `BookExporter` keeps the interface's promises (e.g. never returns null). |
+| **I**: Interface Segregation | Small interfaces per use case, not a 12-method `BookOperations`. |
+| **D**: Dependency Inversion | `BookService` gets a `BookRepository` *interface* through its constructor; tests pass a fake. |
 
-**Concept:** the container starts even with zero endpoints of your own. Actuator's
-endpoint came from auto-configuration, not from code you wrote.
+### 7.4 Lessons learned 🐛
+- **2026-09-30:** `@GetMapping("/")` on a class mapped to `/api/v1/books` gives `/api/v1/books/`. Since
+  Boot 3, `/api/v1/books` won't match that route. Use a bare `@GetMapping` for the collection.
+- **2026-09-30:** Casting `findAll()`'s `List<Book>` to `(Book)` compiles but throws `ClassCastException`
+  at runtime. Use `.stream().map(...).toList()` instead, which is the same idea as `rows.map(toDto)`.
 
----
-
-### Phase 1 — Package structure
-
-- [X] Inside `np.com.milapmagar.book`, create packages:
-      `controller`, `service`, `repository`, `model` (or `entity`), `dto`, `exception`
-- [X] **Verify:** every package sits *under* the package holding `BookApplication`.
-
-**Concept:** package-by-layer. (There is a rival convention, package-by-feature — a
-`book` package holding its own controller/service/repository. Layers are easier wwhile
-learning; note that the alternative exists.)
-
----
-
-### Phase D — Containerise & deploy (done ahead of schedule)
-
-Originally planned for after Phase 10; done early so the API can be reviewed live while it is
-being built. Full notes in `DOCKER_DEPLOY.md`.
-
-- [X] Multi-stage `Dockerfile` (JDK build → JRE runtime, non-root, exec-form `ENTRYPOINT`)
-- [X] `.dockerignore`
-- [X] `compose.yaml` with Postgres 18 + healthcheck, and the app service
-- [X] `application.yaml` reads datasource, `ddl-auto` and `PORT` from environment variables
-- [X] PostgreSQL driver added to `pom.xml`
-- [X] `GET /` landing response (`RootController`) so the Render URL is not a Whitelabel 404
-- [X] Deployed to Render (Docker runtime, root dir `book`, health check `/actuator/health`)
-- [X] **Verify:** the Render URL returns the `/` JSON and `/actuator/health` → `UP`.
-
-**What this means for the phases below:** the `books` table will be created on Render
-Postgres automatically (`ddl-auto: update`) the first time you push the entity. No Dockerfile
-or Render changes are needed for Phases 2–10.
-
----
-
-## ▶ API creation starts here
-
-### Phase 2 — Entity
-
-- [X] Create `Book` in `model`. Fields: `id`, `title`, `author`, `isbn`, `publisher`, `publishedYear`, `price`
-- [X] Mark the class as a JPA entity; map it to a `books` table
-- [X] `id`: generated primary key (identity strategy suits Postgres)
-- [X] `isbn`: unique, not null
-- [X] All fields **private**
-- [X] Add one `discountAmount()` method for handling the discounted price.
-- [X] Give it a no-arg constructor (JPA requires one) and a constructor taking the real fields
-- [X] Implement `equals`/`hashCode` on `isbn` (the business key), **not** on `id`
-- [X] **Verify:** start the app, then `\dt` in psql — the `books` table exists.
-      (`docker compose exec postgres psql -U book -d bookdb -c '\dt'`)
-- [X] Push → after Render redeploys, the table exists on Render Postgres too.
-
-**Concept: Encapsulation.** Ask yourself: *can outside code put this object into on invalid state?* If yes, you exposed too much. The `borrowOneCopy()` method is the difference between a real object and a data bag.
-
----
-
-### Phase 3 — Repository
-
-- [X] Create `BookRepository` in `repository` as an **interface** extending
-      `JpaRepository<Book, Long>`
-- [X] Write zero method bodies
-- [X] Add derived query methods by naming convention:
-      `findByAuthor(...)`, `findByIsbn(...)` (returning `Optional`),
-      `existsByIsbn(...)`, `findByTitleContainingIgnoreCase(...)`
-- [X] **Verify:** the app still starts. Spring generated the implementation — you can confirm by logging the bean's class name and seeing a proxy type.
-
-**Concepts: Abstraction + Dependency Inversion.** You declared *what you need; the framework supplied *how*. Note how little you had to write — that is the payoff of coding against an interface.
-
----
-
-### Phase 4 — DTOs
-
-- [ ] Create `BookRequest` in `dto` — what a client may send. **No `id` field.**
-- [ ] Create `BookResponse` — what you return. Includes `id`.
-- [ ] Add validation constraints to the request: `@NotBlank` on title and author,
-      `@Positive` on totalCopies, a pattern or size rule on isbn
-- [ ] Decide how to convert Entity ↔ DTO. Start with a small static factory or a dedicated
-      mapper class. (MapStruct exists; add it later, once you have felt the boilerplate.)
-- [ ] **Verify:** nothing to run yet — this phase is design.
-
-**Concept: Single Responsibility at the data level.** The Entity's job is persistence;
-the DTO's job is the API contract. Two jobs, two classes, two independent reasons to change.
-
----
-
-### Phase 5 — Service
-
-- [ ] Fill in the existing `services/BookService` and mark it as a service component
-- [ ] `private final BookRepository repository;` — injected **via the constructor**
-- [ ] Methods: `create`, `findAll`, `findById`, `update`, `delete`, `borrow`
-- [ ] Signatures take and return **DTOs**, never Entities
-- [ ] Reject a duplicate ISBN on create — throw your own exception, not a raw
-      `IllegalArgumentException`
-- [ ] No `HttpServletRequest`, no `ResponseEntity`, no annotation from the web package
-      anywhere in this file
-- [ ] Mark write methods transactional; mark reads read-only
-- [ ] **Verify:** grep the file for `Http` and `ResponseEntity` — zero hits.
-
-**Concepts: SRP + DIP together.** The grep is the test. If the service mentions HTTP, it
-has two reasons to change and you have coupled business rules to a transport protocol.
-
----
-
-### Phase 6 — Controller & error handling
-
-- [ ] Fill in the existing `controller/BookController`: `@RestController`, mapped at `/api/books`
-- [ ] Inject `BookService` through the constructor
-- [ ] Endpoints:
-
-| Method | Path | Returns |
-|---|---|---|
-| `GET` | `/api/books` | 200, list |
-| `GET` | `/api/books/{id}` | 200, or 404 |
-| `POST` | `/api/books` | 201 + `Location` header |
-| `PUT` | `/api/books/{id}` | 200 |
-| `DELETE` | `/api/books/{id}` | 204 |
-| `POST` | `/api/books/{id}/borrow` | 200 |
-
-- [ ] Annotate the request body parameter so validation actually runs (a bare
-      `@RequestBody` does **not** validate)
-- [ ] Not-found: reuse the existing `ResourceNotFoundException` (or a `BookNotFoundException`
-      that extends it). Create `DuplicateIsbnException` in `exception`
-- [ ] Create a global exception handler class (`@RestControllerAdvice`) mapping:
-      not-found → 404, duplicate → 409, validation failure → 400 with field errors
-- [ ] Use the existing `ErrorResponse` as the one error shape everywhere (switch `LocalTime`
-      to `Instant`, add field errors — see §1.1)
-- [ ] Add `"books": "/api/books"` to the links in `RootController`
-- [ ] Delete `HealthController` — `/actuator/health` is the real one
-- [ ] **Verify:** exercise every endpoint:
-
-```bash
-curl -s -X POST localhost:8080/api/books \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"Clean Code","author":"Robert C. Martin","isbn":"9780132350884","publishedYear":2008,"totalCopies":3}'
-
-curl -s localhost:8080/api/books
-curl -i localhost:8080/api/books/999          # expect 404, not a stack trace
-curl -i -X POST localhost:8080/api/books -H 'Content-Type: application/json' -d '{}'   # expect 400
-```
-
-- [ ] Push, then repeat the same curls against the Render URL (first request after idling can
-      take 30–60 s — cold start, not a bug).
-
-**Concepts: SRP + Polymorphism.** The controller only translates HTTP ↔ Java. The handler
-picks a response by *exception type* — polymorphic dispatch replacing a pile of `if`s.
-
----
-
-### Phase 7 — PostgreSQL
-
-- [X] Write `compose.yaml` (Section 5.1) — done during Phase D (host port is 5433, see §1.2)
-- [X] `docker compose up -d`, confirm healthy with `docker compose ps`
-- [X] Add the PostgreSQL driver to `pom.xml`
-- [ ] Remove the H2 dependency from `pom.xml` — still there, no longer used
-- [X] Update `application.yaml` — done, env-var driven (`DOCKER_DEPLOY.md` §5.2)
-- [ ] Optional while debugging: `show-sql: true` locally (currently `false`)
-- [ ] Restart, POST a book, then confirm it in SQL:
-      `docker compose exec postgres psql -U book -d bookdb -c 'select * from books;'`
-- [ ] Restart the app again — the row is still there (this is what H2 could not do)
-- [ ] **Later in this phase:** add Flyway, move the schema into
-      `src/main/resources/db/migration/V1__create_books.sql`, switch to `ddl-auto: validate`
-- [ ] **Verify:** data survives an application restart.
-
-**Concept:** the only files that changed were `pom.xml` and `application.yaml`. Your
-controller, service, and entity did not. *That* is what depending on abstractions buys you.
-
----
-
-### Phase 8 — Tests
-
-- [ ] Unit-test `BookService` with a **mock** repository — no Spring context, no database
-- [ ] Assert the failure paths: unknown id throws, duplicate ISBN throws, borrowing the
-      last copy throws
-- [ ] Web-layer test of `BookController` with a mocked service — assert status codes and
-      JSON, not business rules
-- [ ] One integration test that starts the app against a real Postgres
-      (Testcontainers is the right tool; your Docker setup already satisfies it)
-- [ ] **Verify:** `./mvnw test` green; the service tests run in milliseconds.
-
-**Concept:** fast unit tests are only possible *because* of constructor injection against
-an interface. If tests are slow or need a running database to check a rule, the design is
-too coupled. Test speed is a design signal.
-
----
-
-### Phase 9 — Apply Open/Closed deliberately
-
-Pick one and build it, purely to feel the principle:
-
-- [ ] **Export:** a `BookExporter` interface with CSV and JSON implementations. Spring can
-      inject *all* implementations as a `List`; the endpoint picks by a `?format=` parameter.
-      Adding XML later means adding one class and editing nothing.
-- [ ] **Pagination & sorting:** accept a `Pageable` on the list endpoint. Note that you
-      added a feature without changing the repository at all.
-- [ ] **Verify:** adding the third exporter requires zero edits to existing files.
-
-**Concept: Open/Closed + Polymorphism.** The test of OCP is mechanical — count the files
-you had to *edit* to add a feature. Ideally: zero.
-
----
-
-### Phase 10 — Grow the dataset
-
-Now that one entity works end to end, add a relationship:
-
-- [ ] `Member` entity (name, email, joinedAt)
-- [ ] `Loan` entity linking a `Book` and a `Member`, with `borrowedAt` / `returnedAt`
-- [ ] Map the relationships (`@ManyToOne` on `Loan` → both sides). Use `LAZY` fetching.
-- [ ] Borrow/return logic in a `LoanService`, wrapped in a transaction
-- [ ] **Verify:** borrowing decrements `availableCopies` and creates a `Loan` row —
-      or, on failure, does neither.
-
-**Concept:** transactions and aggregate consistency. Two writes that must both happen or
-neither. Also watch for the **N+1 query problem** in your SQL log — `show-sql: true`
-exists for exactly this.
-
----
-
-## 7. Mistakes to avoid (they are all common)
+### 7.5 Mistakes to avoid
 
 | Mistake | Why it hurts |
 |---|---|
-| `@Autowired` on fields | Hides dependencies, blocks testing without reflection, allows non-`final` fields |
-| Returning Entities from controllers | Leaks schema, couples API to database, causes lazy-loading surprises |
-| Business logic in the controller | Untestable without a web server, unreusable |
-| Calling the repository straight from the controller | Skips the layer where rules live; the rules then get duplicated |
-| Catching exceptions and returning `null` | Hides the failure; the caller crashes later with no clue why |
-| One giant `BookService` doing everything | Fails SRP; 800 lines with no obvious place to add anything |
-| `equals`/`hashCode` on the generated `id` | Unsaved entities all have `id == null` and collapse into one another in a `Set` |
-| `ddl-auto: update` forever | Schema drifts silently; no record of how it got that way |
-| Passwords committed in `application.yaml` | Fine for local Docker; a real incident anywhere else. ✅ Already handled — `application.yaml` only holds local defaults; Render injects the real ones. |
+| `@Autowired` on fields | Hides dependencies, fields can't be `final`, hard to test |
+| Returning Entities from controllers | Leaks schema, couples API to DB, lazy-loading surprises |
+| Logic in the controller, or the controller calling the repository | Untestable, and the rules get duplicated |
+| Catching exceptions and returning `null` | The failure surfaces later with no clue why |
+| One giant `BookService` | Breaks SRP; no obvious place to add anything |
+| `equals`/`hashCode` on generated `id` | Unsaved entities (`id == null`) collapse together in a `Set` |
+| `ddl-auto: update` forever | Schema drifts, with no history of how it got there |
 
 ---
 
-## 8. Annotation cheat sheet
+## 8. Cheat sheets
+
+### 8.1 Express/Fastify → Spring Boot 🔁
+
+| Express / Fastify | Spring Boot |
+|---|---|
+| `express.Router()` + `app.use('/api/v1/books', router)` | `@RestController` + `@RequestMapping("/api/v1/books")` |
+| `router.get('/', h)` / `post` / `put` / `delete` | `@GetMapping` / `@PostMapping` / `@PutMapping` / `@DeleteMapping` |
+| `req.params.id` / `req.query.page` / `req.body` | `@PathVariable Long id` / `@RequestParam int page` / `@RequestBody Dto body` |
+| Joi / Zod / Fastify schema | `@Valid` + `@NotBlank`, `@Positive`… on the DTO |
+| `res.status(201).json(x)` | `ResponseEntity.created(uri).body(x)` |
+| `res.status(204).end()` | `ResponseEntity.noContent().build()` |
+| Error middleware `(err, req, res, next)` | `@RestControllerAdvice` + `@ExceptionHandler` |
+| Passing deps in / `require` | Constructor injection |
+| Prisma / TypeORM model | `@Entity` + `JpaRepository` |
+| `rows.map(toDto)` | `list.stream().map(BookResponseDto::from).toList()` |
+| `.env` + `process.env.X` | `application.yaml` + `${X:default}` |
+
+### 8.2 Annotations
 
 | Annotation | Layer | What it does |
 |---|---|---|
-| `@SpringBootApplication` | main | Component scan + auto-configuration + config class |
-| `@RestController` | controller | Component whose return values become the response body |
-| `@RequestMapping` / `@GetMapping` / `@PostMapping` / `@PutMapping` / `@DeleteMapping` | controller | Map a URL + HTTP method to a method |
-| `@PathVariable` / `@RequestParam` / `@RequestBody` | controller | Bind URL segment / query string / JSON body |
-| `@Valid` | controller | Actually run the constraints on the bound object |
-| `@RestControllerAdvice` + `@ExceptionHandler` | controller | Global exception → HTTP response mapping |
-| `@Service` | service | Component marker; signals "business logic lives here" |
-| `@Transactional` | service | Wrap the method in a database transaction |
-| `@Repository` | repository | Component marker; translates persistence exceptions |
-| `@Entity` / `@Table` | model | Map the class to a table |
-| `@Id` / `@GeneratedValue` | model | Primary key and generation strategy |
-| `@Column` | model | Column name, nullability, uniqueness, length |
-| `@ManyToOne` / `@OneToMany` | model | Relationships between entities |
-| `@MappedSuperclass` | model | Shared fields for a parent class that is not itself a table |
+| `@SpringBootApplication` | main | Component scan + auto-config + config class |
+| `@RestController` | controller | Return values become the response body |
+| `@RequestMapping` / `@GetMapping` / `@PostMapping` / `@PutMapping` / `@DeleteMapping` | controller | Map URL + method |
+| `@PathVariable` / `@RequestParam` / `@RequestBody` | controller | Bind path / query / JSON body |
+| `@Valid` | controller | Actually run the DTO constraints |
+| `@RestControllerAdvice` + `@ExceptionHandler` | controller | Global exception → HTTP mapping |
+| `@Service` / `@Repository` | service / repo | Component markers (`@Repository` also translates persistence exceptions) |
+| `@Transactional` | service | Wrap the method in a DB transaction |
+| `@Entity` / `@Table` / `@Id` / `@GeneratedValue` / `@Column` | model | Table, PK, and column mapping |
+| `@ManyToOne` / `@OneToMany` / `@MappedSuperclass` | model | Relationships / shared parent fields |
 | `@NotBlank` / `@NotNull` / `@Positive` / `@Email` / `@Size` | dto | Validation constraints |
-| `@Configuration` / `@Bean` | config | Declare beans you construct yourself |
-
----
-
-## 9. Deployment — done (Phase D)
-
-Containerised and running on Render; credentials come from environment variables. Details and
-the "do I need to touch the Dockerfile?" answer (almost never) are in `DOCKER_DEPLOY.md`.
-
-Still to do, **after** Phase 10:
-
-- [ ] A Spring profile per environment (`application-prod.yaml`; Render already sets
-      `SPRING_PROFILES_ACTIVE=prod`)
-- [ ] Restrict Actuator exposure / put it behind authentication
-- [ ] Spring Security — this is where `UserLoginRequest` finally gets used
-- [ ] Switch Render's `SPRING_JPA_HIBERNATE_DDL_AUTO` to `validate` once Flyway is in
-
----
-
-## 10. Definition of done for this project
-
-- [ ] Six endpoints work and return correct HTTP status codes
-- [ ] Data persists in PostgreSQL across restarts
-- [ ] Schema is managed by Flyway, `ddl-auto: validate`
-- [ ] No Entity ever crosses the HTTP boundary
-- [ ] Service layer has zero web imports
-- [ ] Every dependency is a `final` field injected through a constructor
-- [ ] Service unit tests run without a database
-- [ ] Errors return structured JSON, never a stack trace
-- [ ] You can explain, out loud, where each SOLID principle lives in your code
-- [X] Runs as a container image, configured entirely by environment variables
-- [ ] Every endpoint above also works on the Render URL
+| `@Configuration` / `@Bean` | config | Beans you construct yourself |

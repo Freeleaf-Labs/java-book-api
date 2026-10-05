@@ -4,10 +4,61 @@ Everything left to build, in order, in one list.
 For how to run the project, its conventions, and the concepts behind each step, see
 [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md).
 
-*Last updated: 2026-09-30. Next step: **0** (Husky).*
+*Last updated: 2026-10-05. Next step: **T1** (Categories), see Today below.*
 
 Do the steps in order. **Run → curl → commit → push → curl the Render URL** after each one
 (see `PROJECT_GUIDE.md` → The dev loop). A step is done only when its **✔ check** passes.
+
+## 🎯 Today (2026-10-05): categories, genres, authors, users/me
+
+Four small APIs. The first three are the same shape, so build **categories** end to end first, then
+copy the pattern. JSON shapes for categories and `users/me` are in the frontend repo:
+`../book/docs/BACKEND_TASKS.md` → Part 2. **Genres and authors are not in that contract yet**, so the
+shapes below are a proposal; once they are settled, add them to the contract so the frontend can use them.
+
+Each of T1–T3 needs: entity → repository → request/response DTO (with a static `from(...)`) →
+service → controller. Reuse `ResourceNotFoundException` for 404s and add one `DuplicateResourceException`
+mapped to **409** in `GlobalExceptionHandler` for all three.
+
+T1. - [ ] **Categories** `/api/v1/categories`
+      - [ ] `Category` entity: `id`, `name` (unique), `slug` (unique, generated from the name:
+            lower-case, spaces → `-`)
+      - [ ] `GET /categories` returns a plain array sorted by name (not paged)
+      - [ ] `POST /categories` with `@Valid` `{ name }` → **201** `CategoryResponse`; **409** if it exists
+      - [ ] `PUT /categories/{id}` `{ name }` → 200; 404 if missing
+      - [ ] `DELETE /categories/{id}` → **204**; 404 if missing
+      ✔ `curl -s localhost:8080/api/v1/categories` shows
+        `[{"id":1,"name":"Programming","slug":"programming"}]`, and POSTing the same name twice gives 409.
+
+T2. - [ ] **Genres** `/api/v1/genres`: same five endpoints and the same `{ id, name, slug }` shape as T1.
+      Decide first how a genre differs from a category (for example category = subject area such as
+      *Programming*, genre = kind of book such as *Textbook* or *Reference*). If they turn out to be
+      the same thing, keep only categories.
+      ✔ Same checks as T1 against `/genres`.
+
+T3. - [ ] **Authors** `/api/v1/authors`
+      - [ ] `Author` entity: `id`, `name` (required), `bio` (optional)
+      - [ ] `GET /authors` (sorted by name), `GET /authors/{id}`, `POST`, `PUT /authors/{id}`,
+            `DELETE /authors/{id}` with the same status codes as T1
+      - [ ] Leave `Book.author` as a `String` for today. Linking `Book` → `Author` with `@ManyToOne`
+            changes the book JSON, so do it as a separate step together with the frontend contract.
+      ✔ POST an author, GET it back by id, and `GET /authors/999` returns the 404 JSON.
+
+T4. - [ ] **`GET /api/v1/users/me`** (and `PATCH /users/me` with `{ displayName }`)
+      - [ ] Prerequisite: this needs to know *who* is calling, and today `SecurityConfig`,
+            `JwtService`, `JwtAuthenticationFilter` and `UserController` are empty classes and
+            Spring Security is not in `pom.xml`. Get register + login + the JWT filter working first
+            (frontend contract → Stage 3), or `/users/me` has no user to return.
+      - [ ] `User` has `fullname`, `email`, `password`, `phone` but the contract's `UserResponse` is
+            `{ id, email, displayName, role, enabled, createdAt }`. Add `role`, `enabled`,
+            `createdAt`, and either rename `fullname` → `displayName` or map it in the DTO.
+      - [ ] `UserResponse.from(User)` must never include the password.
+      - [ ] Read the current user from the security context (`@AuthenticationPrincipal` or
+            `Authentication`), not from an id in the URL or body.
+      ✔ `curl -i localhost:8080/api/v1/users/me` with no token → **401**; with
+        `-H 'Authorization: Bearer <token>'` → 200 and the logged-in user, with no `password` key.
+
+T5. - [ ] **Link them.** Add `categories`, `genres` and `authors` to the links map in `RootController`.
 
 ## 📌 Stage 0: Git hooks with Husky (do this first)
 

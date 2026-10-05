@@ -1,18 +1,18 @@
 package np.com.milapmagar.book.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import np.com.milapmagar.book.model.Book;
 import np.com.milapmagar.book.model.User;
 
 public record LoginRequestDto(
-        Long id,
-        String email,
+
+        @NotBlank(message = "Email is required")
+        @Email(message = "Title must be at most 255 characters")
+        String title,
+
+        @NotBlank(message = "Password is required")
+        @Size(min= 8, max = 255, message = "Password must be atleast 8 - 16 ")
         String password
-) {
-    // the one place an entity is turned into a response
-    public static LoginRequestDto from(User user){
-        return new LoginRequestDto(
-                user.getEmail(),
-                user.getPassword()
-        )
-    }
-}
+) {}

@@ -23,7 +23,7 @@ app:
     secret: ${JWT_SECRET:}
   cors:
     # Comma-separated list of frontend origins allowed to call the API from a browser.
-    origins: ${APP_CORS_ORIGINS:http://localhost:5173}
+    origins: ${APP_CORS_ORIGINS:http://localhost:5173 , https://book.milapmagar.com.np}
   cookie:
     # Lax works when the frontend is on the same site (e.g. another subdomain).
     # Use None when the frontend lives on a different domain entirely.

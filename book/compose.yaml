@@ -22,6 +22,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bookdb
       SPRING_DATASOURCE_USERNAME: book
       SPRING_DATASOURCE_PASSWORD: book
+      # Local-only values. In production set real ones in the host's environment settings.
+      JWT_SECRET: local-dev-secret-change-me-in-production-0123456789
+      ADMIN_EMAIL: admin@shelfmallow.dev
+      ADMIN_PASSWORD: admin12345
+      APP_CORS_ORIGINS: http://localhost:5173
     depends_on:
       postgres:
         condition: service_healthy

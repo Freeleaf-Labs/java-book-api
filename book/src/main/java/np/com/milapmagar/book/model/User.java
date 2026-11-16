@@ -1,78 +1,106 @@
 package np.com.milapmagar.book.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.Instant;
 
 @Entity
-@Table(name = "users")
+// "user" is a reserved word in Postgres, and an older version of this app left a "users" table
+// with a different shape behind, so the accounts live in their own table.
+@Table(name = "app_users")
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name= "id", nullable = false)
     private Long id;
 
-    @Column(name = "fullName", nullable = false)
-    private String fullName;
-
-    @Column(name = "email", unique = true, nullable = false)
+    // always stored lower-case, see AuthServices
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password", nullable = false)
-    private String password;
+    // the BCrypt hash, never the raw password
+    @Column(nullable = false)
+    private String passwordHash;
 
-    @Column(name = "phone", unique = true, nullable = false)
-    private String phone;
+    @Column(nullable = false)
+    private String displayName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+
+    @Column(nullable = false)
+    private boolean enabled = true;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
 
     /** CONSTRUCTORS **/
-    public User(){
+    public User() {
     }
 
-    public User(String fullName, String email, String password, String phone){
-        this.fullName = fullName;
+    public User(String email, String passwordHash, String displayName, Role role) {
         this.email = email;
-        this.password = password ;
-        this.phone = phone;
+        this.passwordHash = passwordHash;
+        this.displayName = displayName;
+        this.role = role;
     }
 
     /** GETTERS & SETTERS **/
-    // id
-    public Long getId(){
+    public Long getId() {
         return id;
     }
-    public void setId(Long id){ this.id = id;}
 
-    // fullName
-    public String getFullName(){
-        return fullName;
-    }
-    public void setFullName(String fullName){this.fullName = fullName;}
-
-    // Email
-    public String getEmail(){
+    public String getEmail() {
         return email;
     }
-    public void setEmail(String email){this.email = email;}
-    // Password
-    public String getPassword(){
-        return password;
-    }
-    public void setPassword(String password){this.password = password;}
-    // Phone
-    public String getPhone(){
-        return phone;
-    }
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    // the password hash is left out on purpose so it can never end up in a log line
     @Override
-    public String toString(){
+    public String toString() {
         return "User {" +
                 "id=" + id +
-                ", fullName='" + fullName + '\'' +
                 ", email='" + email + '\'' +
-                ", password='" + password + '\'' +
-                ", phone='" + phone + '\'' +
+                ", displayName='" + displayName + '\'' +
+                ", role=" + role +
+                ", enabled=" + enabled +
                 '}';
     }
 }

@@ -3,7 +3,9 @@
 One list of everything left to build, in order. How to run the project and the ideas behind each
 step are in [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md).
 
-*Last updated: 2026-10-06 (checked against the code). Next step: **S2**, then S3 → S4 → S5.*
+*Last updated: 2026-11-16 (checked against the code). The table below is current; the detailed
+checkboxes further down were written before the big 2026-11-16 build and many of them are now done
+in the code (they are kept as the explanation of each step).*
 
 **Rules**
 - Do the steps in order. After each one: run → curl → commit → push → curl the Render URL.
@@ -16,16 +18,17 @@ step are in [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md).
 |---|---|---|
 | A | Clean up the existing code | ✅ done |
 | B | Error handling (404, 400, JSON errors) | ✅ done |
-| S | Authentication | 🟡 in progress: register and login work, no tokens yet |
+| S | Authentication | ✅ done: JWT access token, rotating refresh cookie, roles, admin seeding, CORS, JSON 401/403 |
 | 0 | Pre-commit hook | ⬜ not done (nothing in the repo yet) |
-| T | Categories, genres, authors | ⬜ not started |
-| C | Books: create, update, delete | ⬜ not started (only the two GETs exist) |
+| T | Categories, genres, authors | 🟡 categories done; genres and authors not started |
+| C | Books: create, update, delete | ✅ done (admin only) |
 | D | Database migrations (Flyway) | ⬜ not started |
-| E | Patch, search, pagination | ⬜ not started |
-| F | Tests | ⬜ only the default "context loads" test |
+| E | Patch, search, pagination | 🟡 search, pagination and sorting done; PATCH not started |
+| F | Tests | 🟡 end-to-end tests on Testcontainers Postgres (`ApiFlowTests`); no unit tests yet |
 | G | Exporters (Open/Closed) | ⬜ not started |
-| H | Borrowing, purchases, subscriptions | 🟡 empty entity shells exist |
-| I | Production polish | ⬜ not started |
+| H | Borrowing, purchases, subscriptions | ⬜ not started (the empty shells were removed) |
+| I | Production polish | 🟡 Swagger UI at `/` done; prod profile not started |
+| + | Reviews, admin users and stats (from the frontend contract) | ✅ done |
 
 ## 🔐 Stage S: Authentication (current)
 

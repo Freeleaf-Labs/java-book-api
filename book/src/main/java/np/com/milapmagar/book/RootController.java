@@ -1,33 +1,23 @@
 package np.com.milapmagar.book;
 
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Value;
+import io.swagger.v3.oas.annotations.Hidden;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
 
 @RestController
 public class RootController {
 
-    private final String appName;
-
-    RootController(@Value("${spring.application.name}") String appName) {
-        this.appName = appName;
-    }
-
-    // Landing response for "/" so the deployed URL shows what this service is
+    // Opening the bare URL lands on the API documentation (Swagger UI)
     // instead of the Whitelabel 404 page.
+    @Hidden // keep this redirect itself out of the documentation
     @GetMapping("/")
-    ApiInfo index() {
-        return new ApiInfo(
-                appName,
-                "running",
-                Map.of(
-                        "health", "/actuator/health",
-                        "books", "/api/v1/books"
-                ));
-    }
-
-    record ApiInfo(String name, String status, Map<String, String> links) {
+    ResponseEntity<Void> index() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create("/swagger-ui/index.html"))
+                .build();
     }
 }

@@ -82,7 +82,7 @@ SPRING_PROFILES_ACTIVE=dev \
 ### Check it's alive
 
 ```bash
-curl localhost:8080/                  # service info
+curl -i localhost:8080/               # 302 → Swagger UI (open it in a browser)
 curl localhost:8080/actuator/health   # {"status":"UP"}
 ```
 
@@ -90,28 +90,62 @@ curl localhost:8080/actuator/health   # {"status":"UP"}
 
 ## 📡 Endpoints
 
-| Method | Path | Description | Status |
-|---|---|---|:---:|
-| `GET` | `/` | Service name, status and links | ✅ |
-| `GET` | `/actuator/health` | Health check (used by Render) | ✅ |
-| `GET` | `/api/v1/books` | List all books | ✅ |
-| `GET` | `/api/v1/books/{id}` | Get one book (`404` if missing) | ✅ |
-| `POST` | `/api/v1/books` | Create a book (`201` + `Location`) | 🚧 |
-| `PUT` | `/api/v1/books/{id}` | Update a book | 🚧 |
-| `DELETE` | `/api/v1/books/{id}` | Delete a book (`204`) | 🚧 |
+Interactive docs (Swagger UI) are served at **`/`**. Public endpoints work straight away; for the
+rest, log in, copy the `accessToken` and paste it into **Authorize**.
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| `GET` | `/` | Public | Redirects to Swagger UI |
+| `GET` | `/actuator/health` | Public | Health check (used by Render) |
+| `POST` | `/api/v1/auth/register` | Public | Create an account (`201`, `409` if the email is taken) |
+| `POST` | `/api/v1/auth/login` | Public | Access token (15 min) + refresh cookie (7 days) |
+| `POST` | `/api/v1/auth/refresh` | Cookie | New access token, rotated cookie |
+| `POST` | `/api/v1/auth/logout` | Cookie | Revoke the refresh token (`204`) |
+| `GET` `PATCH` | `/api/v1/users/me` | User | Read / rename your own account |
+| `GET` | `/api/v1/categories` | Public | All categories, sorted by name |
+| `POST` `PUT` `DELETE` | `/api/v1/categories[/{id}]` | Admin | Manage categories |
+| `GET` | `/api/v1/books` | Public | Paged list: `search`, `category`, `author`, `sort`, `page`, `size` |
+| `GET` | `/api/v1/books/{id}` | Public | One book (`404` if missing) |
+| `POST` `PUT` `DELETE` | `/api/v1/books[/{id}]` | Admin | Manage books (`201` + `Location`, `409` on duplicate ISBN) |
+| `GET` | `/api/v1/books/{id}/reviews` | Public | Paged reviews, newest first |
+| `GET` `PUT` | `/api/v1/books/{id}/reviews/mine` | User | Read / create-or-change your review |
+| `DELETE` | `/api/v1/reviews/{id}` | Owner or Admin | Delete a review |
+| `GET` | `/api/v1/admin/users` | Admin | Paged users, `search` |
+| `PATCH` | `/api/v1/admin/users/{id}` | Admin | Change role, enable / disable |
+| `GET` | `/api/v1/admin/stats` | Admin | Totals for the dashboard |
+
+Not built yet: file uploads, downloads and resources (they need file storage).
+
+### Environment variables
+
+| Variable | Needed in production | Meaning |
+|---|:---:|---|
+| `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | ✅ | The Postgres database |
+| `JWT_SECRET` | ✅ | 32+ random characters used to sign tokens. If unset, a random key is made on every start. |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | ✅ | The first admin account, created at startup when no admin exists |
+| `APP_CORS_ORIGINS` | ✅ | Frontend origin(s), comma-separated. Default `http://localhost:5173` |
+| `APP_COOKIE_SAME_SITE` | | `Lax` (default) or `None` if the frontend is on an unrelated domain |
+| `APP_SEED_DEMO_DATA` | | `true` (default) fills an empty database with 6 categories and 22 books |
 
 <details>
-<summary><b>Example request (once the book endpoints land)</b></summary>
+<summary><b>Example request</b></summary>
 
 ```bash
+# log in as the admin from compose.yaml and keep the token
+TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@shelfmallow.dev","password":"admin12345"}' | jq -r .accessToken)
+
 curl -s -X POST localhost:8080/api/v1/books \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
-        "title": "Clean Code",
-        "author": "Robert C. Martin",
-        "publisher": "Prentice Hall",
-        "publishedYear": "2008",
-        "isbn": "9780132350884"
+        "title": "Sapiens",
+        "author": "Yuval Noah Harari",
+        "publisher": "Harper",
+        "publishedYear": 2011,
+        "isbn": "9780062316097",
+        "categoryId": 1
       }'
 ```
 

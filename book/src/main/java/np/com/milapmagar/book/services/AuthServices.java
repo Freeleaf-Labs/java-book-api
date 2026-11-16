@@ -1,76 +1,142 @@
 package np.com.milapmagar.book.services;
 
-import np.com.milapmagar.book.dto.authentication.LoginRequestDto;
-import np.com.milapmagar.book.dto.authentication.LoginResponseDto;
-import np.com.milapmagar.book.dto.authentication.RegisterRequestDto;
-import np.com.milapmagar.book.dto.authentication.RegisterResponseDto;
-import np.com.milapmagar.book.exception.EmailAlreadyExistsException;
+import np.com.milapmagar.book.dto.UserResponse;
+import np.com.milapmagar.book.dto.authentication.AuthResponse;
+import np.com.milapmagar.book.dto.authentication.LoginRequest;
+import np.com.milapmagar.book.dto.authentication.RegisterRequest;
+import np.com.milapmagar.book.exception.ConflictException;
 import np.com.milapmagar.book.exception.InvalidCredentialsException;
+import np.com.milapmagar.book.model.RefreshToken;
+import np.com.milapmagar.book.model.Role;
 import np.com.milapmagar.book.model.User;
+import np.com.milapmagar.book.repository.RefreshTokenRepository;
 import np.com.milapmagar.book.repository.UserRepository;
+import np.com.milapmagar.book.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.HexFormat;
+import java.util.Optional;
 
 @Service
 public class AuthServices {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    public static final Duration REFRESH_TOKEN_LIFETIME = Duration.ofDays(7);
 
-    public AuthServices(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    // One message for "no such email", "wrong password" and "disabled", so a stranger
+    // cannot use the login form to find out which emails have an account.
+    private static final String BAD_LOGIN = "Invalid email or password";
+    private static final String BAD_SESSION = "Session expired, please log in again";
+
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final SecureRandom random = new SecureRandom();
+
+    public AuthServices(UserRepository userRepository,
+                        RefreshTokenRepository refreshTokenRepository,
+                        PasswordEncoder passwordEncoder,
+                        JwtService jwtService) {
         this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
-    // reigster-api-services
-    public RegisterResponseDto register(RegisterRequestDto registerRequest){
+    /** What a successful login or refresh produces: the JSON body, plus the raw refresh token
+     *  that the controller puts in a cookie. The raw token exists only here and in the browser. */
+    public record Session(AuthResponse response, String refreshToken) {}
 
-        // new user creation
-        User user = new User();
-
-        if (Boolean.parseBoolean(userRepository.existsByEmail(registerRequest.email()))) {
-            throw new EmailAlreadyExistsException("Email is already registered");
+    // register-api-services
+    @Transactional
+    public UserResponse register(RegisterRequest request) {
+        String email = normalize(request.email());
+        if (userRepository.existsByEmail(email)) {
+            throw new ConflictException("Email is already registered");
         }
 
-        user.setFullName(registerRequest.fullName());
-        user.setEmail(registerRequest.email());
-        user.setPhone(registerRequest.phone());
-
-        // Hashing the password first then adding in the dashboard
-        String hashedPassword = passwordEncoder.encode(registerRequest.password());
-        // Setting the hashed password
-        user.setPassword(hashedPassword);
-        userRepository.save(user);
-        // response
-        return new RegisterResponseDto(
-                user.getFullName(),
-                user.getEmail(),
-                user.getPhone()
-        );
+        // Hash first: the raw password never reaches the database.
+        String passwordHash = passwordEncoder.encode(request.password());
+        User user = new User(email, passwordHash, request.displayName().trim(), Role.USER);
+        return UserResponse.from(userRepository.save(user));
     }
 
     // login-api-services
-    public LoginResponseDto login(LoginRequestDto loginRequestDto) {
+    @Transactional
+    public Session login(LoginRequest request) {
+        User user = userRepository.findByEmail(normalize(request.email()))
+                .orElseThrow(() -> new InvalidCredentialsException(BAD_LOGIN));
 
-        User user = userRepository
-                .findByEmail(loginRequestDto.email())
-                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+        if (!user.isEnabled() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new InvalidCredentialsException(BAD_LOGIN);
+        }
+        return openSession(user);
+    }
 
-        boolean matches = passwordEncoder.matches(
-                loginRequestDto.password(),
-                user.getPassword()
-        );
+    // Swaps a refresh token for a new access token. The old refresh token is revoked and a new one
+    // issued ("rotation"), so a stolen token stops working the moment the real user refreshes.
+    @Transactional
+    public Session refresh(String rawRefreshToken) {
+        RefreshToken token = findUsable(rawRefreshToken)
+                .orElseThrow(() -> new InvalidCredentialsException(BAD_SESSION));
 
-        if (!matches) {
-            throw new InvalidCredentialsException("Invalid email or password");
+        User user = token.getUser();
+        if (!user.isEnabled()) {
+            throw new InvalidCredentialsException(BAD_SESSION);
         }
 
-        // response
-        return new LoginResponseDto(
-                user.getId(),
-                user.getFullName(),
-                user.getEmail(),
-                user.getPhone()
-        );
+        token.revoke();
+        return openSession(user);
+    }
+
+    @Transactional
+    public void logout(String rawRefreshToken) {
+        findUsable(rawRefreshToken).ifPresent(RefreshToken::revoke);
+    }
+
+    private Session openSession(User user) {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        String rawRefreshToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+
+        refreshTokenRepository.save(
+                new RefreshToken(user, sha256(rawRefreshToken), Instant.now().plus(REFRESH_TOKEN_LIFETIME)));
+
+        AuthResponse response = new AuthResponse(
+                jwtService.issue(user),
+                JwtService.ACCESS_TOKEN_LIFETIME.toSeconds(),
+                UserResponse.from(user));
+        return new Session(response, rawRefreshToken);
+    }
+
+    private Optional<RefreshToken> findUsable(String rawRefreshToken) {
+        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
+            return Optional.empty();
+        }
+        return refreshTokenRepository.findByTokenHash(sha256(rawRefreshToken))
+                .filter(RefreshToken::isUsable);
+    }
+
+    // "Asha@Example.com " and "asha@example.com" are the same account
+    private static String normalize(String email) {
+        return email.trim().toLowerCase();
+    }
+
+    private static String sha256(String value) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e); // every JVM ships SHA-256
+        }
     }
 }

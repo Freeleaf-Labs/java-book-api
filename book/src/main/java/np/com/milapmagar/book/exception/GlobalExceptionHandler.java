@@ -2,9 +2,12 @@ package np.com.milapmagar.book.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -18,7 +21,7 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // Invalid Credentials Exceptions
+    // wrong email or password, or a refresh token that no longer works
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCredentials(
             InvalidCredentialsException ex
@@ -26,14 +29,37 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
-    // Register Email already existed
-    @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
-            EmailAlreadyExistsException ex
-    ) {
+    // No token, or one that is expired or tampered with. Raised by the security filters and
+    // passed in here by SecurityConfig. The message is fixed so it reveals nothing about why.
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthenticated(AuthenticationException ex){
+        return respond(HttpStatus.UNAUTHORIZED, "Missing, invalid or expired access token");
+    }
+
+    // logged in, but not allowed to do this
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleForbidden(AccessDeniedException ex){
+        return respond(HttpStatus.FORBIDDEN, "You are not allowed to do this");
+    }
+
+    // duplicate email / ISBN / category, or a change that is not possible right now
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex) {
         return respond(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    // Safety net: two requests created the same thing at the same moment, both passed the
+    // "does it exist?" check, and the database's unique constraint stopped the second one.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return respond(HttpStatus.CONFLICT, "This conflicts with something that already exists");
+    }
+
+    // e.g. an unknown sort field
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex) {
+        return respond(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
 
     // Resource not found exception
     @ExceptionHandler(ResourceNotFoundException.class)

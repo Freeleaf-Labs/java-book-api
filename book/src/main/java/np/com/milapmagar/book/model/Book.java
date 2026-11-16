@@ -1,48 +1,63 @@
 package np.com.milapmagar.book.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
+import java.time.Instant;
 
 @Entity
-@Table(name = "book")
+@Table(name = "books")
 public class Book {
 
     /** FIELDS **/
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     // this above generative value generates id automatically
-    @Column(name = "id")
     private Long id;
 
-    @Column(name = "title")
+    @Column(nullable = false)
     private String title;
 
-    @Column(name = "author")
+    @Column(nullable = false)
     private String author;
 
-    @Column(name = "publisher")
     private String publisher;
 
-    @Column(name = "publishedYear")
-    private String publishedYear;
+    private Integer publishedYear;
 
-    @Column(name = "ISBN", unique = true, nullable = false)
+    // optional, but two books can never share one
+    @Column(unique = true)
     private String isbn;
 
-    @Column(name = "Price")
-    private BigDecimal price;
+    @Column(length = 5000)
+    private String description;
+
+    // a plain link to a cover image; null when the book has none
+    private String coverUrl;
+
+    // LAZY: the category row is only loaded when something actually asks for it
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    // kept up to date by ReviewService every time a review is added, changed or removed
+    @Column(nullable = false)
+    private double ratingAvg;
+
+    @Column(nullable = false)
+    private int ratingCount;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private Instant updatedAt;
 
     /** CONSTRUCTORS **/
     public Book() {
-    }
-
-    public Book(String title, String author, String publisher, String publishedYear, String isbn) {
-        this.title = title;
-        this.author = author;
-        this.publisher = publisher;
-        this.publishedYear = publishedYear;
-        this.isbn = isbn;
     }
 
     /** GETTERS & SETTERS **/
@@ -50,9 +65,6 @@ public class Book {
     // ID
     public Long getId() {
         return id;
-    }
-    public void setId(Long id) {
-        this.id = id;
     }
 
     // TITLE
@@ -80,10 +92,10 @@ public class Book {
     }
 
     // PUBLISHED YEAR
-    public String getPublishedYear() {
+    public Integer getPublishedYear() {
         return publishedYear;
     }
-    public void setPublishedYear(String publishedYear) {
+    public void setPublishedYear(Integer publishedYear) {
         this.publishedYear = publishedYear;
     }
 
@@ -95,12 +107,49 @@ public class Book {
         this.isbn = isbn;
     }
 
-    // Price
-    public BigDecimal getPrice(){return price;}
-    public void setPrice(BigDecimal price) {
-        this.price = price;
+    // DESCRIPTION
+    public String getDescription() {
+        return description;
+    }
+    public void setDescription(String description) {
+        this.description = description;
     }
 
+    // COVER
+    public String getCoverUrl() {
+        return coverUrl;
+    }
+    public void setCoverUrl(String coverUrl) {
+        this.coverUrl = coverUrl;
+    }
+
+    // CATEGORY
+    public Category getCategory() {
+        return category;
+    }
+    public void setCategory(Category category) {
+        this.category = category;
+    }
+
+    // RATING
+    public double getRatingAvg() {
+        return ratingAvg;
+    }
+    public int getRatingCount() {
+        return ratingCount;
+    }
+    public void setRating(double ratingAvg, int ratingCount) {
+        this.ratingAvg = ratingAvg;
+        this.ratingCount = ratingCount;
+    }
+
+    // TIMESTAMPS (set by Hibernate, so there are no setters)
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
 
     @Override
     public String toString() {
@@ -109,9 +158,8 @@ public class Book {
                 ", title='" + title + '\'' +
                 ", author='" + author + '\'' +
                 ", publisher='" + publisher + '\'' +
-                ", publishedYear='" + publishedYear + '\'' +
+                ", publishedYear=" + publishedYear +
                 ", isbn='" + isbn + '\'' +
-                ", price='" + price + '\'' +
                 '}';
     }
 
